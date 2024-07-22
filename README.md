@@ -3,9 +3,10 @@
 ```bash
 sudo apt install ros-noetic-mavros-extras
 ```
+
 ## ego_planner 实机使用
 ```bash
-roslaunch single_offb_pkg swarm_single.launch drone_id:=EGO_ID
+roslaunch control_for_gym uav_ctrl.launch
 ```
 
 ### Eigen 库找不到
