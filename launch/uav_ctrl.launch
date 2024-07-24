@@ -2,7 +2,7 @@
     <arg name = "drone_id" default = "1"/>
     <arg name = "ctrl_mode" default = "mpCtrl"/>
     <include file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="/dev/ttyACM:921600"/>
+        <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
         <!-- <arg name="gcs_url" value="udp://:14556@10.42.0.173:14550"/> -->
     </include>
 
