@@ -42,7 +42,7 @@ int wait_count = 0;
 void publish_ctrl_msg(const mavros_msgs::PositionTarget::ConstPtr &msg)
 {
     wait_count ++ ;
-    if(wait_count > 300):
+    if(wait_count > 300)
     {
         ROS_INFO("gym go");
         local_accel_pub.publish(msg);
