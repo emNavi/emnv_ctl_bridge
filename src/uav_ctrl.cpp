@@ -36,10 +36,17 @@ std_msgs::Float32MultiArray takeoff_cmd;
 std_msgs::Float32MultiArray land_cmd;
 ros::Publisher vision_pose_pub;
 
+int wait_count = 0;
 
 
 void publish_ctrl_msg(const mavros_msgs::PositionTarget::ConstPtr &msg)
 {
+    wait_count ++ ;
+    if(wait_count > 300):
+    {
+        ROS_INFO("gym go");
+        local_accel_pub.publish(msg);
+    }
     // mpCtrl.coordinate_frame = mpCtrl.FRAME_LOCAL_NED;
 
     // geometry_msgs::PoseStamped exp_pos;
@@ -53,7 +60,6 @@ void publish_ctrl_msg(const mavros_msgs::PositionTarget::ConstPtr &msg)
     // mpCtrl.velocity = pva_yaw.velocity;
     // mpCtrl.acceleration_or_force = pva_yaw.acceleration;
     // mpCtrl.yaw = pva_yaw.yaw;
-    local_accel_pub.publish(msg);
 }
 
 // void publish_err_msg()
