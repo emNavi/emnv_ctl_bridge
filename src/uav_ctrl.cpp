@@ -41,12 +41,10 @@ int wait_count = 0;
 
 void publish_ctrl_msg(const mavros_msgs::PositionTarget::ConstPtr &msg)
 {
-    wait_count ++ ;
-    if(wait_count > 300)
-    {
+
         ROS_INFO("gym go");
         local_accel_pub.publish(msg);
-    }
+
     // mpCtrl.coordinate_frame = mpCtrl.FRAME_LOCAL_NED;
 
     // geometry_msgs::PoseStamped exp_pos;
@@ -299,8 +297,12 @@ int main(int argc, char **argv)
 
             if (abs(cur_pos.pose.position.z - TAKEOFF_HEIGHT) < 0.1)
             {
+                wait_count ++ ;
+                if(wait_count > 300)
+                {
                 fsm.set_takeoff_over_flag(true);
                 ROS_INFO("Take off done");
+                }
             }
         }
         else if (fsm.now_state == CtrlFSM::HOVER)
