@@ -34,7 +34,7 @@ geometry_msgs::PoseStamped cur_pos;
 geometry_msgs::TwistStamped cur_vel;
 std_msgs::Float32MultiArray takeoff_cmd;
 std_msgs::Float32MultiArray land_cmd;
-geometry_msgs::PoseStamped vision_pose_pub;
+ros::Publisher vision_pose_pub;
 
 
 
@@ -94,8 +94,19 @@ void pva_yaw_cb(const mavros_msgs::PositionTarget::ConstPtr &msg)
     }
 }
 void vrpn_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
-{
-    vision_pose_pub.publish(*msg);
+{    // 创建一个新的 PoseStamped 消息
+    geometry_msgs::PoseStamped modified_msg;
+    modified_msg.header.stamp = ros::Time::now();
+    modified_msg.header.frame_id = msg->header.frame_id;  // 保留原来的 frame_id
+
+    // 对位置进行变换（例如，添加一个偏移量）
+    modified_msg.pose.position.x = msg->pose.position.x/1000.0;  // 偏移量为 1.0 米
+    modified_msg.pose.position.y = msg->pose.position.y/1000.0;
+    modified_msg.pose.position.z = msg->pose.position.z/1000.0;
+
+    // 对方向（四元数）进行变换（这里保持不变，仅作为示例）
+    modified_msg.pose.orientation = msg->pose.orientation;
+    vision_pose_pub.publish(modified_msg);
 }
 
 bool takeoff_cmd_flag = false;
@@ -190,7 +201,7 @@ int main(int argc, char **argv)
     ros::Subscriber pva_yaw_sub = nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
     ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, drone_id));
     ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, drone_id));
-    ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/drone_7/pose", 10, boost::bind(land_cmd_cb, _1, drone_id));
+    ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/drone_7/pose", 10, vrpn_cb);
 
     arming_client = nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     set_mode_client = nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
