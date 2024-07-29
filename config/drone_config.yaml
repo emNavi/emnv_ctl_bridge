@@ -1,0 +1,5 @@
+control_mode: vel
+gain:
+  Kv0: 1.5
+  Kv1: 1.5
+  Kv2: 1.5
