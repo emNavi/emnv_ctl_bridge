@@ -9,7 +9,7 @@ namespace MyMath
  * Compatibility checked by unittests.
  */
 
-Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
+inline Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 {
 	// YPR - ZYX
 	return Eigen::Quaterniond(
@@ -18,7 +18,7 @@ Eigen::Quaterniond quaternion_from_rpy(const Eigen::Vector3d &rpy)
 			Eigen::AngleAxisd(rpy.x(), Eigen::Vector3d::UnitX())
 			);
 }
-double fromQuaternion2yaw(Eigen::Quaterniond q)
+inline double fromQuaternion2yaw(Eigen::Quaterniond q)
 {
     double yaw = atan2(2 * (q.x() * q.y() + q.w() * q.z()), q.w() * q.w() + q.x() * q.x() - q.y() * q.y() - q.z() * q.z());
     return yaw;

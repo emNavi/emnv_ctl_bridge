@@ -1,8 +1,3 @@
-/**
- * @file offb_node.cpp
- * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
- * Stack and tested in Gazebo Classic SITL
- */
 #include <ros/ros.h>
 
 #include <mavros_msgs/State.h>
@@ -17,11 +12,11 @@
 #include <geometry_msgs/TwistStamped.h>
 
 #include <std_msgs/Float32MultiArray.h>
+#include <boost/shared_ptr.hpp>
 
 #include "control_for_gym/FSM.hpp"
-#include "control_for_gym/regular_motion.hpp"
 #include "control_for_gym/mavros_utils.hpp"
-#include <boost/shared_ptr.hpp>
+
 
 #define ROS_RATE 50.0
 #define TAKEOFF_HEIGHT 1.2
@@ -31,10 +26,6 @@ ros::Publisher local_raw_pub, local_position_pub, local_linear_vel_pub,atti_ctrl
 ros::Publisher err_pub;
 ros::Publisher vision_pose_pub;
 
-
-mavros_msgs::State current_state;
-geometry_msgs::PoseStamped cur_pos;
-geometry_msgs::TwistStamped cur_vel;
 std_msgs::Float32MultiArray takeoff_cmd;
 std_msgs::Float32MultiArray land_cmd;
 CtrlFSM fsm;
@@ -214,13 +205,11 @@ int main(int argc, char **argv)
             if (fsm.last_state != CtrlFSM::TAKEOFF)
             {
                 ROS_INFO("MODE: TAKEOFF");
-                start_pose.pose.position.x = cur_pos.pose.position.x;
-                start_pose.pose.position.y = cur_pos.pose.position.y;
+                start_pose.pose.position.x = mavros_utils._mav_odom.position(0);
+                start_pose.pose.position.y = mavros_utils._mav_odom.position(1);
                 start_pose.pose.position.z = TAKEOFF_HEIGHT;
             }
-            // pose.pose = start_pose.pose;
             
-            // local_position_pub.publish(pose);
             geometry_msgs::Twist takeoff_vel;
             takeoff_vel.linear.x = 0;
             takeoff_vel.linear.y = 0;

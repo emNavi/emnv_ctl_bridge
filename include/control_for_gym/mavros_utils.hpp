@@ -1,3 +1,6 @@
+#ifndef __MAVROS_UTILS_HPP
+#define __MAVROS_UTILS_HPP
+
 #include <ros/ros.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/SetMode.h>
@@ -12,6 +15,7 @@
 #include <strings.h>
 #include <Eigen/Eigen>
 #include "control_for_gym/linear_controller.hpp"
+#include "control_for_gym/my_math.hpp"
 struct mav_state
 {
     bool connected = false;
@@ -80,3 +84,4 @@ public:
     void update(geometry_msgs::Twist::ConstPtr cmd);
 };
 
+#endif

@@ -1,6 +1,9 @@
-#include "my_math.hpp"
+#ifndef __HOVER_THRUST_EKF_HPP
+#define __HOVER_THRUST_EKF_HPP
 #include <cmath>
 #include <iostream>
+#include "control_for_gym/my_math.hpp"
+
 static constexpr float CONSTANTS_ONE_G = 9.80665f;						// m/s^2
 
 /**
@@ -77,7 +80,7 @@ public:
 };
 
 
-HoverThrustEkf::HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise)
+inline HoverThrustEkf::HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise)
 {
     // 更新频率与position callback频率相同
 
@@ -90,22 +93,22 @@ HoverThrustEkf::HoverThrustEkf(double init_hover_thrust,double hover_thrust_nois
 }
 
 
-HoverThrustEkf::~HoverThrustEkf()
+inline HoverThrustEkf::~HoverThrustEkf()
 {
 }
-void HoverThrustEkf::enableGate(double gate_size)
+inline void HoverThrustEkf::enableGate(double gate_size)
 {
     use_gate_flag=true; 
     _gate_size = gate_size;
 
 }
-void HoverThrustEkf::printLog()
+inline void HoverThrustEkf::printLog()
 {
     std::cout<< "hover_thr" << _hover_thr <<" innov "<< _innov << " innov_var " << _innov_var <<" innov_test_ratio "<<_innov_test_ratio<<std::endl;
 }
 
 
-double HoverThrustEkf::getHoverThrust(){
+inline double HoverThrustEkf::getHoverThrust(){
     return _hover_thr;
 }
 
@@ -115,7 +118,7 @@ double HoverThrustEkf::getHoverThrust(){
  * State is constant,Predict state covariance only
  * @param dt 
  */
-void HoverThrustEkf::predict(const float dt){
+inline void HoverThrustEkf::predict(const float dt){
 	_state_var += _process_var * dt * dt; // 量纲统一
 	_dt = dt;
 }
@@ -127,7 +130,7 @@ inline float HoverThrustEkf::computeH(const float thrust) const
 	return -CONSTANTS_ONE_G * thrust / (_hover_thr * _hover_thr);
 }
 //Innovation or measurement residual
-float HoverThrustEkf::computeInnov(const float acc_z, const float thrust) const
+inline float HoverThrustEkf::computeInnov(const float acc_z, const float thrust) const
 {
 	const float predicted_acc_z = CONSTANTS_ONE_G * thrust / _hover_thr - CONSTANTS_ONE_G;
 	return acc_z - predicted_acc_z;
@@ -163,7 +166,7 @@ inline void HoverThrustEkf::updateStateCovariance(const float K, const float H)
  * @param acc_z z轴方向的加速度
  * @param thrust_z 和油门在z轴方向的分量
  */
-void HoverThrustEkf::fuseAccZ(const float acc_z, const float thrust_z)
+inline void HoverThrustEkf::fuseAccZ(const float acc_z, const float thrust_z)
 {
 	const float H = computeH(thrust_z);
 	const float innov_var = computeInnovVar(H);
@@ -219,3 +222,5 @@ inline void HoverThrustEkf::updateMeasurementNoise(const float residual, const f
 	const float P = _state_var;
 	_acc_var = MyMath::constrain((1.f - alpha) * _acc_var  + alpha * (res_no_bias * res_no_bias + H * P * H), 1.f, 400.f);
 }
+
+#endif

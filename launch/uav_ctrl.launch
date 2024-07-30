@@ -8,7 +8,7 @@
         <!-- <arg name="gcs_url" value="udp://:14556@10.42.0.173:14550"/> -->
     </include>
 
-    <node name = "uav_ctrl" pkg = "control_for_gym" type = "uav_ctrl" output = "screen">
+    <node name = "ctrl_bridge" pkg = "control_for_gym" type = "ctrl_bridge" output = "screen">
         <remap from="~vel_cmd" to="/airgym/cmd"/>
         <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>

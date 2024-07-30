@@ -1,3 +1,6 @@
+#ifndef __LINEAR_CONTROL_HPP
+#define __LINEAR_CONTROL_HPP
+
 #include <geometry_msgs/Twist.h>
 #include "control_for_gym/hover_thrust_ekf.hpp"
 #include "control_for_gym/my_math.hpp"
@@ -52,7 +55,7 @@ public:
 
 };
 
-LinearControl::LinearControl(/* args */)
+inline LinearControl::LinearControl(/* args */)
 {
     _gain_v_p << 1.5,1.5,1.5;
     _gain_v_i << 0.0,0.0,0.0;
@@ -60,7 +63,7 @@ LinearControl::LinearControl(/* args */)
 
     thrust_exp = 0.3;
 }
-void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
+inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
 {
     _vel_world = vel;
     _pos_world = pos;
@@ -72,7 +75,7 @@ void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::
 
 
 }
-void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q)
+inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q)
 {
     _vel_world = vel;
     _pos_world = pos;
@@ -85,7 +88,7 @@ void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::
 
 
 
-void LinearControl::update(geometry_msgs::Twist::ConstPtr  &des,double yaw_sp,double dt)
+inline void LinearControl::update(geometry_msgs::Twist::ConstPtr  &des,double yaw_sp,double dt)
 {
     _des_acc = _gain_v_p.asDiagonal()*(_des_vel - _vel_world) + _gain_v_i.asDiagonal() * _des_acc_int;
     _vel_error = (_des_vel - _vel_world).cwiseMax(-_param_max_des_vel).cwiseMin(_param_max_des_vel);
@@ -111,6 +114,7 @@ void LinearControl::update(geometry_msgs::Twist::ConstPtr  &des,double yaw_sp,do
 }
 
 
-LinearControl::~LinearControl()
+inline LinearControl::~LinearControl()
 {
 }
+#endif

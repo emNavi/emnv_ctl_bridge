@@ -24,7 +24,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(uav_ctrl src/uav_ctrl.cpp)
-target_link_libraries(uav_ctrl
+add_executable(ctrl_bridge src/uav_ctrl.cpp src/mavros_utils.cpp)
+target_link_libraries(ctrl_bridge
   ${catkin_LIBRARIES}
 )

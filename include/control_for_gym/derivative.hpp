@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __DERIVATIVE_HPP
+#define __DERIVATIVE_HPP
 #include <cmath>
 class FilterBase
 {
@@ -96,3 +97,4 @@ private:
     float getLP() { return _lowPass.getFCut(); }
     float getO() { return _lowPass.getState(); }
 };
+#endif
