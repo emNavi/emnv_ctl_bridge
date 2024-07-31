@@ -73,6 +73,8 @@
   <exec_depend>poly_curves_pkg</exec_depend>
   <build_depend>regular_motion</build_depend>
   <exec_depend>regular_motion</exec_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <exec_depend>sensor_msgs</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
