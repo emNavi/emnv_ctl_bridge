@@ -276,13 +276,13 @@ int main(int argc, char **argv)
 
             mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(land_vel));
 
-            if(mavros_utils._mav_odom.velocity(2) > -0.1 && mavros_utils._hover_thrust < 0.11)
+            if(mavros_utils.get_hover_thrust() > 0.11)
             {
-            
+                hover_above_land_start_time = ros::Time::now();
             }
-            if(ros::Time::now() -  hover_above_land_start_time > 2)
+            if(ros::Time::now() -  hover_above_land_start_time > ros::Duration(2))
             {
-                
+                mavros_utils.request_disarm();
             }
 
             // if (current_state.mode != "AUTO.LAND" &&

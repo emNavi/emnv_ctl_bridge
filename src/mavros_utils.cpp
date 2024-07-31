@@ -101,6 +101,19 @@ bool MavrosUtils::request_arm()
     return false;
 }
 
+bool MavrosUtils::request_disarm()
+{
+    mavros_msgs::CommandBool arm_cmd;
+    arm_cmd.request.value = false;
+
+    if (arming_client.call(arm_cmd) &&
+        arm_cmd.response.success)
+    {
+        ROS_INFO("Vehicle armed");
+        return true;
+    }
+    return false;
+}
 void MavrosUtils::mav_state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
     _mav_state.armed = msg->armed;

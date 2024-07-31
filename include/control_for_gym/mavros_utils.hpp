@@ -72,8 +72,13 @@ public:
 
     bool request_arm();
     bool request_offboard();
+    bool request_disarm();
     void send_atti_cmd();
     void set_motors_idling();
+    double get_hover_thrust()
+    {
+        return _hover_thrust;
+    }
 
     bool isOffboardMode()
     {
