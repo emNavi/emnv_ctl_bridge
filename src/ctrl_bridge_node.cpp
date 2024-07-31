@@ -30,6 +30,7 @@ std_msgs::Float32MultiArray takeoff_cmd;
 std_msgs::Float32MultiArray land_cmd;
 CtrlFSM fsm;
 
+
 // callback begin************************
 
 void pva_yaw_cb(const mavros_msgs::PositionTarget::ConstPtr &msg)
@@ -40,12 +41,22 @@ void pva_yaw_cb(const mavros_msgs::PositionTarget::ConstPtr &msg)
         local_raw_pub.publish(msg);
     }
 }
+geometry_msgs::Twist airgym_vel;
 void local_linear_vel_cb(const geometry_msgs::Twist::ConstPtr &msg)
 {
     fsm.update_cmd_update_time(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
-        local_linear_vel_pub.publish(msg);
+
+        airgym_vel.linear.x = msg->linear.x, -1, 1;
+        airgym_vel.linear.y = msg->linear.y, -1, 1;
+        airgym_vel.linear.z = msg->linear.z, -1, 1;
+
+        airgym_vel.linear.x = MyMath::clamp<double>(msg->linear.x, -1, 1);
+        airgym_vel.linear.y = MyMath::clamp<double>(msg->linear.y, -1, 1);
+        airgym_vel.linear.z = MyMath::clamp<double>(msg->linear.z, -1, 1);
+
+
     }
 }
 
@@ -228,7 +239,6 @@ int main(int argc, char **argv)
             hover_vel.linear.y = MyMath::clamp<double>(hover_vel.linear.y, -1, 1);
             hover_vel.linear.z = MyMath::clamp<double>(hover_vel.linear.z, -1, 1);
             mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
-            std::cout Q<< "hover vel z" <<" "<< hover_vel.linear.z;
 
 
             // pose.pose = start_pose.pose;
@@ -241,6 +251,8 @@ int main(int argc, char **argv)
             {
                 ROS_INFO_STREAM("MODE: RUNNING");
             }
+            mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(airgym_vel));
+
             
         }
 
