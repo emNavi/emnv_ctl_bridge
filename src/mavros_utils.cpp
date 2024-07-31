@@ -2,7 +2,7 @@
 
 MavrosUtils::MavrosUtils(ros::NodeHandle &_nh)
 {
-    hoverThrustEkf = new HoverThrustEkf(0.4f, 0.1f, 0.0036f);
+    hoverThrustEkf = new HoverThrustEkf(0.4f, 0.1f, 0.036f);
 
     last_recv_odom_time = ros::Time::now();
     // get state
@@ -12,6 +12,9 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh)
 
     // Note: do NOT change it to /mavros/imu/data_raw !!!
     mav_atti_ctrl_pub = _nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
+
+    // mav_atti_target_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mav_atti_target_cb, this);
+    mav_atti_target_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mav_atti_target_cb, this);
 
     arming_client = _nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     set_mode_client = _nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -26,7 +29,7 @@ void MavrosUtils::update(geometry_msgs::Twist::ConstPtr cmd)
     controller.update(cmd, 0.0, 0.01); // dt 暂时无用
     _mav_atti_cmd.attitude = controller.q_exp;
     _mav_atti_cmd.thrust = controller.thrust_exp;
-    ROS_INFO_STREAM(cmd->linear.z<<controller.thrust_exp);
+    ROS_INFO_STREAM(" cmd->linear.z " << cmd->linear.z<<" thrust_exp "<<controller.thrust_exp << "hover t" << _hover_thrust);
 
 }
 void MavrosUtils::set_motors_idling()
@@ -67,6 +70,7 @@ void MavrosUtils::connect()
     std::cout << std::endl;
     ROS_INFO("FCU connected");
     // TODO:send a few setpoints before starting
+    // 对于 /setpoint_raw/attitude 似乎不需要也可以
 }
 
 bool MavrosUtils::request_offboard()
@@ -109,14 +113,13 @@ void MavrosUtils::mav_imu_cb(const sensor_msgs::Imu::ConstPtr &msg)
     _mav_odom.acc(1) = msg->linear_acceleration.y;
     _mav_odom.acc(2) = msg->linear_acceleration.z;
     
-    Eigen::Vector3d thrust_z = _mav_odom.attitude.toRotationMatrix() * Eigen::Vector3d(0, 0, _mav_atti_cmd.thrust);
+    // Eigen::Vector3d thrust_z = _mav_odom.attitude.toRotationMatrix() * Eigen::Vector3d(0, 0, _mav_atti_cmd.thrust);
+    
     double dt = (msg->header.stamp - last_recv_odom_time).toSec();
-
+    // ROS_INFO_STREAM(" _mav_atti_cmd.thrust" <<  _mav_atti_cmd.target_thrust << "dt" << dt);
     hoverThrustEkf->predict(dt); // dt
-    hoverThrustEkf->fuseAccZ(_mav_odom.acc(2), thrust_z(2));
-    // hoverThrustEkf->printLog();
     _hover_thrust = hoverThrustEkf->getHoverThrust();
-    _hover_thrust = 0.70;
+    // _hover_thrust = 0.30;
 
     controller.set_hover_thrust(_hover_thrust);
     last_recv_odom_time = msg->header.stamp;
@@ -143,3 +146,10 @@ void MavrosUtils::mav_local_odom_cb(const nav_msgs::Odometry::ConstPtr &msg)
 
 }
 
+void MavrosUtils::mav_atti_target_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
+{
+    _mav_atti_cmd.target_thrust = msg->thrust;
+    ROS_INFO_STREAM("_mav_odom.acc(2)" << _mav_odom.acc(2) << "_mav_atti_cmd.target_thrust"<< _mav_atti_cmd.target_thrust);
+    hoverThrustEkf->fuseAccZ(_mav_odom.acc(2)-CONSTANTS_ONE_G, _mav_atti_cmd.target_thrust);
+    hoverThrustEkf->printLog();
+}

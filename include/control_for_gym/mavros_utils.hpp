@@ -35,6 +35,7 @@ struct mav_atti_command
 {
     Eigen::Quaterniond attitude;
     double thrust; //(-1,1)
+    double target_thrust;
 };
 
 class MavrosUtils
@@ -47,6 +48,7 @@ private:
     ros::Subscriber mav_current_odom_sub;
     ros::Subscriber mav_vel_sub;
     ros::Subscriber imu_sub;
+    ros::Subscriber mav_atti_target_sub;
 
     ros::Publisher mav_atti_ctrl_pub;
 
@@ -66,6 +68,7 @@ public:
     void mav_state_cb(const mavros_msgs::State::ConstPtr &msg);
     void mav_local_odom_cb(const nav_msgs::Odometry::ConstPtr &msg);
     void mav_imu_cb(const sensor_msgs::Imu::ConstPtr &msg);
+    void mav_atti_target_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
 
     bool request_arm();
     bool request_offboard();

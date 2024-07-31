@@ -3,6 +3,17 @@
 #include <Eigen/Eigen>
 namespace MyMath
 {
+
+template <typename T>
+T clamp(T value, T minValue, T maxValue) {
+    if (value < minValue) {
+        return minValue;
+    } else if (value > maxValue) {
+        return maxValue;
+    } else {
+        return value;
+    }
+}
 	/*
  * Note: order of axis are match tf2::LinearMath (bullet).
  * YPR rotation convention -> YAW first, Pitch second, Roll third

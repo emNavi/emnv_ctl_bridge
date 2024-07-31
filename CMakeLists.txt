@@ -24,7 +24,11 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(ctrl_bridge src/uav_ctrl.cpp src/mavros_utils.cpp)
+add_executable(ctrl_bridge src/ctrl_bridge_node.cpp src/mavros_utils.cpp)
 target_link_libraries(ctrl_bridge
+  ${catkin_LIBRARIES}
+)
+add_executable(ekf_test src/ekf_hover_test.cpp)
+target_link_libraries(ekf_test
   ${catkin_LIBRARIES}
 )

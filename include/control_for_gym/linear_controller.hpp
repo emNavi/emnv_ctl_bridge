@@ -90,16 +90,20 @@ inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, 
 
 inline void LinearControl::update(geometry_msgs::Twist::ConstPtr  &des,double yaw_sp,double dt)
 {
+    _des_vel(0) = des->linear.x;
+    _des_vel(1) = des->linear.y;
+    _des_vel(2) = des->linear.z;
+
     _des_acc = _gain_v_p.asDiagonal()*(_des_vel - _vel_world) + _gain_v_i.asDiagonal() * _des_acc_int;
     _vel_error = (_des_vel - _vel_world).cwiseMax(-_param_max_des_vel).cwiseMin(_param_max_des_vel);
 
 
     _des_acc_int += _vel_error ; 
-
+    // _des_acc += Eigen::Vector3d(0,0,CONSTANTS_ONE_G);
 
 
     thrust_exp = _des_acc(2) * (_hover_thrust / CONSTANTS_ONE_G) + _hover_thrust;
-    // ROS_INFO_STREAM("_des_acc"<< _des_acc << "thrust_exp" << thrust_exp << "_hover_thrust"<<_hover_thrust);
+    ROS_INFO_STREAM("_des_acc"<< _des_acc << "thrust_exp" << thrust_exp << "_hover_thrust"<<_hover_thrust);
 
     double roll, pitch, yaw, yaw_imu;
     double yaw_odom = MyMath::fromQuaternion2yaw(_q_world);

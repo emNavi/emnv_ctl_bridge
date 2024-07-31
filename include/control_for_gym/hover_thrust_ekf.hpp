@@ -169,8 +169,12 @@ inline void HoverThrustEkf::updateStateCovariance(const float K, const float H)
 inline void HoverThrustEkf::fuseAccZ(const float acc_z, const float thrust_z)
 {
 	const float H = computeH(thrust_z);
+	// std::cout << "H" << H << std::endl;
 	const float innov_var = computeInnovVar(H);
+
 	const float innov = computeInnov(acc_z, thrust_z);
+	// std::cout << "innov" << innov << std::endl;
+
 	const float K = computeKalmanGain(H, innov_var);
 	const float innov_test_ratio = computeInnovTestRatio(innov, innov_var);
 
