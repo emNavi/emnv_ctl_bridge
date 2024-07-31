@@ -112,12 +112,6 @@ int main(int argc, char **argv)
     std::cout << "takeoff_height" << _param_takeoff_height << std::endl;
 
 
-
-
-
-    //////////////////////////////////////////////////////
-
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
     MavrosUtils mavros_utils(nh);
     fsm.Init_FSM();
@@ -234,7 +228,7 @@ int main(int argc, char **argv)
             hover_vel.linear.y = MyMath::clamp<double>(hover_vel.linear.y, -1, 1);
             hover_vel.linear.z = MyMath::clamp<double>(hover_vel.linear.z, -1, 1);
             mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
-                std::cout << "hover vel z" <<" "<< hover_vel.linear.z;
+            std::cout Q<< "hover vel z" <<" "<< hover_vel.linear.z;
 
 
             // pose.pose = start_pose.pose;

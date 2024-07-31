@@ -3,6 +3,7 @@
 
 ctrl_bridge::ctrl_bridge(/* args */)
 {
+    
 }
 
 ctrl_bridge::~ctrl_bridge()
