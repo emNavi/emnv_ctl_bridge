@@ -19,8 +19,8 @@
 
 
 #define ROS_RATE 100.0
-#define PUB_MODE "RATE"
-#define TAKEOFF_HEIGHT 1.2
+#define PUB_MODE "ATTI"
+#define TAKEOFF_HEIGHT 0.6
 
 mavros_msgs::CommandBool arm_cmd;
 ros::Publisher local_raw_pub, local_linear_vel_pub,atti_ctrl_pub;
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 
     // vrpn - vision_pose
     // ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/quadrotor_control/odom", 10, vrpn_cb);
-    // ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/drone_7/pose", 10, vrpn_cb);
+    ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/emnavi0000/pose", 10, vrpn_cb);
 
 
     // direct command
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
                 des_rate(0) = mavros_utils_ptr->_mav_atti_cmd.rate(0);
                 des_rate(1) = mavros_utils_ptr->_mav_atti_cmd.rate(1);
                 des_rate(2) = mavros_utils_ptr->_mav_atti_cmd.rate(2);
-                des_rate(3) = mavros_utils_ptr->_mav_atti_cmd.thrust;
+                des_thrust = mavros_utils_ptr->_mav_atti_cmd.thrust;
             }
         }
         else if (fsm.now_state == CtrlFSM::RUNNING)
@@ -336,7 +336,7 @@ int main(int argc, char **argv)
         }
         else if(PUB_MODE == "RATE")
         {
-
+            // ROS_INFO_STREAM()
             mavros_utils_ptr->send_rate_cmd(des_rate,des_thrust);
         }
 
