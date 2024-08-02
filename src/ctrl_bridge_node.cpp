@@ -19,8 +19,8 @@
 
 
 #define ROS_RATE 100.0
-#define TAKEOFF_HEIGHT 0.6
 #define PUB_MODE "RATE"
+#define TAKEOFF_HEIGHT 1.2
 
 mavros_msgs::CommandBool arm_cmd;
 ros::Publisher local_raw_pub, local_linear_vel_pub,atti_ctrl_pub;
