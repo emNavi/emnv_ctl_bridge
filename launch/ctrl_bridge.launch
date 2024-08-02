@@ -2,6 +2,7 @@
     <arg name = "drone_id" default = "1"/>
     <arg name = "takeoff_height" default = "0.6"/>
     <arg name = "in_real" default="true" />
+    <arg name = "cmd_pub_type" default = "RATE"/>
 
     <include if="$(arg in_real)" file="$(find mavros)/launch/px4.launch">
         <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
@@ -11,9 +12,18 @@
     </include>
 
     <node name = "ctrl_bridge" pkg = "control_for_gym" type = "ctrl_bridge" output = "screen">
-        <remap from="~vel_cmd" to="/airgym/cmd"/>
+        <!-- choose One -->
+        <remap from="~vel_sp_sub" to="/airgym/cmd"/>
+        <remap from="~rate_sp_sub" to="/ipc/rate_cmd"/>
+
+
+        <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
+
+
         <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <param name ="cmd_pub_type" value="$(arg takeoff_height)"/>
+        <!-- RATE or ATTI -->
 
     </node>
 </launch>

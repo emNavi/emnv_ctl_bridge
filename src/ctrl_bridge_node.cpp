@@ -20,7 +20,6 @@
 
 #define ROS_RATE 100.0
 #define PUB_MODE "ATTI"
-#define TAKEOFF_HEIGHT 0.6
 
 mavros_msgs::CommandBool arm_cmd;
 ros::Publisher local_raw_pub, local_linear_vel_pub,atti_ctrl_pub;
@@ -126,23 +125,30 @@ void land_cmd_cb(const std_msgs::Float32MultiArray::ConstPtr &msg, int drone_id)
         }
     }
 }
+struct node_param
+{
+    std::string cmd_pub_type;
+    double takeoff_height;
+    int drone_id;
+
+};
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "uav_ctrl_node");
     ros::NodeHandle nh("~");
 
+    node_param param;
 
-    int drone_id;
-    double _param_takeoff_height = 0.3;
-    nh.param<int>("drone_id", drone_id, 99);
-    nh.param<double>("takeoff_height", _param_takeoff_height, 0.3);
+    nh.param<int>("drone_id", param.drone_id, 99);
+    nh.param<double>("takeoff_height", param.takeoff_height, 0.3);
+    nh.param<std::string>("cmd_pub_type", param.cmd_pub_type, "ATTI");
 
 
+
+    std::cout << "drone id " << param.drone_id << std::endl;
+    std::cout << "takeoff_height" << param.cmd_pub_type << std::endl;
     ros::Time hover_above_land_start_time = ros::Time::now();
-
-    std::cout << "drone id " << drone_id << std::endl;
-    std::cout << "takeoff_height" << _param_takeoff_height << std::endl;
 
     mavros_utils_ptr = new MavrosUtils(nh);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,16 +156,16 @@ int main(int argc, char **argv)
 
     // vrpn - vision_pose
     // ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/quadrotor_control/odom", 10, vrpn_cb);
-    ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/emnavi0000/pose", 10, vrpn_cb);
+    ros::Subscriber vrpn_pose = nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, vrpn_cb);
 
 
     // direct command
     ros::Subscriber  pva_yaw_sub= nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
-    ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_cmd", 10, local_linear_vel_cb);
+    ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_sp_sub", 10, local_linear_vel_cb);
     ros::Subscriber rate_sp_sub = nh.subscribe<geometry_msgs::Twist>("rate_sp_sub", 10, local_linear_vel_cb);
 
-    ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, drone_id));
-    ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, drone_id));
+    ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, param.drone_id));
+    ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, param.drone_id));
     
     vision_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
 
@@ -216,7 +222,7 @@ int main(int argc, char **argv)
                 ROS_INFO("MODE: TAKEOFF");
                 start_pose.pose.position.x = mavros_utils_ptr->_mav_odom.position(0);
                 start_pose.pose.position.y = mavros_utils_ptr->_mav_odom.position(1);
-                start_pose.pose.position.z = TAKEOFF_HEIGHT;
+                start_pose.pose.position.z = param.takeoff_height;
             }
             
             geometry_msgs::Twist takeoff_vel;
@@ -229,7 +235,7 @@ int main(int argc, char **argv)
 
 
             mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
-            if (abs(mavros_utils_ptr->_mav_odom.position(2) - TAKEOFF_HEIGHT) < 0.1)
+            if (abs(mavros_utils_ptr->_mav_odom.position(2) - param.takeoff_height) < 0.1)
             {
 
                 fsm.set_takeoff_over_flag(true);
