@@ -20,6 +20,7 @@
 
 #define ROS_RATE 100.0
 #define TAKEOFF_HEIGHT 0.6
+#define PUB_MODE "RATE"
 
 mavros_msgs::CommandBool arm_cmd;
 ros::Publisher local_raw_pub, local_linear_vel_pub,atti_ctrl_pub;
@@ -29,6 +30,12 @@ ros::Publisher vision_pose_pub;
 std_msgs::Float32MultiArray takeoff_cmd;
 std_msgs::Float32MultiArray land_cmd;
 CtrlFSM fsm;
+
+MavrosUtils* mavros_utils_ptr = nullptr;
+
+
+bool f_recv_takeoff_cmd = false;
+bool land_cmd_flag = false;
 
 
 // callback begin************************
@@ -41,22 +48,40 @@ void pva_yaw_cb(const mavros_msgs::PositionTarget::ConstPtr &msg)
         local_raw_pub.publish(msg);
     }
 }
-geometry_msgs::Twist airgym_vel;
 void local_linear_vel_cb(const geometry_msgs::Twist::ConstPtr &msg)
 {
     fsm.update_cmd_update_time(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
+        geometry_msgs::Twist airgym_vel;
 
-        airgym_vel.linear.x = msg->linear.x, -1, 1;
-        airgym_vel.linear.y = msg->linear.y, -1, 1;
-        airgym_vel.linear.z = msg->linear.z, -1, 1;
+        airgym_vel.linear.x = msg->linear.x;
+        airgym_vel.linear.y = msg->linear.y;
+        airgym_vel.linear.z = msg->linear.z;
 
-        airgym_vel.linear.x = MyMath::clamp<double>(msg->linear.x, -1, 1);
-        airgym_vel.linear.y = MyMath::clamp<double>(msg->linear.y, -1, 1);
-        airgym_vel.linear.z = MyMath::clamp<double>(msg->linear.z, -1, 1);
+        // airgym_vel.linear.x = MyMath::clamp<double>(msg->linear.x, -1, 1);
+        // airgym_vel.linear.y = MyMath::clamp<double>(msg->linear.y, -1, 1);
+        // airgym_vel.linear.z = MyMath::clamp<double>(msg->linear.z, -1, 1);
 
+        mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(airgym_vel));
 
+    }
+}
+mavros_msgs::AttitudeTarget des_body_rate;
+Eigen::Vector3d des_rate;
+double des_thrust;
+
+void des_body_rate_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
+{
+    fsm.update_cmd_update_time(ros::Time::now());
+    if (fsm.now_state == CtrlFSM::RUNNING)
+    {
+        des_body_rate.body_rate = msg->body_rate;
+        des_rate(0) = msg->body_rate.x;
+        des_rate(1) = msg->body_rate.y;
+        des_rate(2) = msg->body_rate.z;
+
+        des_thrust = msg->thrust;
     }
 }
 
@@ -76,10 +101,8 @@ void vrpn_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     vision_pose_pub.publish(modified_msg);
 }
 
-bool f_recv_takeoff_cmd = false;
 void takeoff_cmd_cb(const std_msgs::Float32MultiArray::ConstPtr &msg, int drone_id)
 {
-
     takeoff_cmd = *msg;
     // ROS_INFO_STREAM(takeoff_cmd.data[0] << takeoff_cmd.data[1] << drone_id);
 
@@ -92,7 +115,6 @@ void takeoff_cmd_cb(const std_msgs::Float32MultiArray::ConstPtr &msg, int drone_
     }
 }
 
-bool land_cmd_flag = false;
 void land_cmd_cb(const std_msgs::Float32MultiArray::ConstPtr &msg, int drone_id)
 {
     land_cmd = *msg;
@@ -105,11 +127,11 @@ void land_cmd_cb(const std_msgs::Float32MultiArray::ConstPtr &msg, int drone_id)
     }
 }
 
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "uav_ctrl_node");
     ros::NodeHandle nh("~");
+
 
     int drone_id;
     double _param_takeoff_height = 0.3;
@@ -122,9 +144,8 @@ int main(int argc, char **argv)
     std::cout << "drone id " << drone_id << std::endl;
     std::cout << "takeoff_height" << _param_takeoff_height << std::endl;
 
-
+    mavros_utils_ptr = new MavrosUtils(nh);
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    MavrosUtils mavros_utils(nh);
     fsm.Init_FSM();
 
     // vrpn - vision_pose
@@ -135,13 +156,15 @@ int main(int argc, char **argv)
     // direct command
     ros::Subscriber  pva_yaw_sub= nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
     ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_cmd", 10, local_linear_vel_cb);
+    ros::Subscriber rate_sp_sub = nh.subscribe<geometry_msgs::Twist>("rate_sp_sub", 10, local_linear_vel_cb);
+
     ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, drone_id));
     ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, drone_id));
     
     vision_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
 
 
-    mavros_utils.connect();
+    mavros_utils_ptr->connect();
     ros::Rate rate(ROS_RATE);
     /* ------------------init params --------------------------------------------------*/
     geometry_msgs::PoseStamped start_pose;
@@ -154,36 +177,35 @@ int main(int argc, char **argv)
             if (!f_recv_takeoff_cmd)
             {
                 ros::spinOnce();
-                rate.sleep();
+                ros::Rate(10).sleep();
                 continue;
             }
-
             // Request offboard and Arm
-            if (!mavros_utils.isOffboardMode() &&
+            if (!mavros_utils_ptr->isOffboardMode() &&
                 (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
             {
-                if (!mavros_utils.request_offboard())
+                if (!mavros_utils_ptr->request_offboard())
                     ROS_WARN("offboard failed,try again after 5.0 second");
                 fsm.last_try_offboard_time = ros::Time::now();
             }
-            else if (mavros_utils.isOffboardMode() && !mavros_utils.isArmed() &&
+            else if (mavros_utils_ptr->isOffboardMode() && !mavros_utils_ptr->isArmed() &&
                      (ros::Time::now() - fsm.last_try_arm_time > ros::Duration(5.0)))
             {
-                if (!mavros_utils.request_arm())
+                if (!mavros_utils_ptr->request_arm())
                     ROS_WARN("arm failed,try again after 5.0 second");
                 fsm.last_try_arm_time = ros::Time::now();
             }
 
             // set flag
-            if (mavros_utils.isOffboardMode())
+            if (mavros_utils_ptr->isOffboardMode())
             {
                 fsm.set_offboard_flag(true);
             }
-            if (mavros_utils.isOffboardMode() && mavros_utils.isArmed())
+            if (mavros_utils_ptr->isOffboardMode() && mavros_utils_ptr->isArmed())
             {
                 fsm.set_arm_flag(true);
             }
-            mavros_utils.set_motors_idling(); //不能停
+            mavros_utils_ptr->set_motors_idling(); //不能停
 
 
         }
@@ -192,22 +214,22 @@ int main(int argc, char **argv)
             if (fsm.last_state != CtrlFSM::TAKEOFF)
             {
                 ROS_INFO("MODE: TAKEOFF");
-                start_pose.pose.position.x = mavros_utils._mav_odom.position(0);
-                start_pose.pose.position.y = mavros_utils._mav_odom.position(1);
+                start_pose.pose.position.x = mavros_utils_ptr->_mav_odom.position(0);
+                start_pose.pose.position.y = mavros_utils_ptr->_mav_odom.position(1);
                 start_pose.pose.position.z = TAKEOFF_HEIGHT;
             }
             
             geometry_msgs::Twist takeoff_vel;
-            takeoff_vel.linear.x = -(mavros_utils._mav_odom.position(0) - start_pose.pose.position.x)*3; 
-            takeoff_vel.linear.y = -(mavros_utils._mav_odom.position(1) - start_pose.pose.position.y)*3; 
-            takeoff_vel.linear.z = -(mavros_utils._mav_odom.position(2) - start_pose.pose.position.z)*3; 
+            takeoff_vel.linear.x = -(mavros_utils_ptr->_mav_odom.position(0) - start_pose.pose.position.x)*3; 
+            takeoff_vel.linear.y = -(mavros_utils_ptr->_mav_odom.position(1) - start_pose.pose.position.y)*3; 
+            takeoff_vel.linear.z = -(mavros_utils_ptr->_mav_odom.position(2) - start_pose.pose.position.z)*3; 
             takeoff_vel.linear.x = MyMath::clamp<double>(takeoff_vel.linear.x, -1, 1);
             takeoff_vel.linear.y = MyMath::clamp<double>(takeoff_vel.linear.y, -1, 1);
             takeoff_vel.linear.z = MyMath::clamp<double>(takeoff_vel.linear.z, -1, 1);
 
 
-            mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
-            if (abs(mavros_utils._mav_odom.position(2) - TAKEOFF_HEIGHT) < 0.1)
+            mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
+            if (abs(mavros_utils_ptr->_mav_odom.position(2) - TAKEOFF_HEIGHT) < 0.1)
             {
 
                 fsm.set_takeoff_over_flag(true);
@@ -220,30 +242,37 @@ int main(int argc, char **argv)
             {
                 ROS_INFO("MODE: HOVER");
 
-                start_pose.pose.position.x = mavros_utils._mav_odom.position(0);
-                start_pose.pose.position.y = mavros_utils._mav_odom.position(1);
-                start_pose.pose.position.z = mavros_utils._mav_odom.position(2);
-                start_pose.pose.orientation.x =  mavros_utils._mav_odom.attitude.x();
-                start_pose.pose.orientation.y =  mavros_utils._mav_odom.attitude.y();
-                start_pose.pose.orientation.z =  mavros_utils._mav_odom.attitude.z();
-                start_pose.pose.orientation.w =  mavros_utils._mav_odom.attitude.w();
+                start_pose.pose.position.x = mavros_utils_ptr->_mav_odom.position(0);
+                start_pose.pose.position.y = mavros_utils_ptr->_mav_odom.position(1);
+                start_pose.pose.position.z = mavros_utils_ptr->_mav_odom.position(2);
+                start_pose.pose.orientation.x =  mavros_utils_ptr->_mav_odom.attitude.x();
+                start_pose.pose.orientation.y =  mavros_utils_ptr->_mav_odom.attitude.y();
+                start_pose.pose.orientation.z =  mavros_utils_ptr->_mav_odom.attitude.z();
+                start_pose.pose.orientation.w =  mavros_utils_ptr->_mav_odom.attitude.w();
                 std::cout << "hover position" <<" "<< start_pose.pose.position.x << " "<< start_pose.pose.position.y <<" "<< start_pose.pose.position.z<<std::endl;
 
 
             }
             geometry_msgs::Twist hover_vel;
-            hover_vel.linear.x = -(mavros_utils._mav_odom.position(0) - start_pose.pose.position.x)*3; 
-            hover_vel.linear.y = -(mavros_utils._mav_odom.position(1) - start_pose.pose.position.y)*3; 
-            hover_vel.linear.z = -(mavros_utils._mav_odom.position(2) - start_pose.pose.position.z)*3; 
+            hover_vel.linear.x = -(mavros_utils_ptr->_mav_odom.position(0) - start_pose.pose.position.x)*3; 
+            hover_vel.linear.y = -(mavros_utils_ptr->_mav_odom.position(1) - start_pose.pose.position.y)*3; 
+            hover_vel.linear.z = -(mavros_utils_ptr->_mav_odom.position(2) - start_pose.pose.position.z)*3; 
             hover_vel.linear.x = MyMath::clamp<double>(hover_vel.linear.x, -1, 1);
             hover_vel.linear.y = MyMath::clamp<double>(hover_vel.linear.y, -1, 1);
             hover_vel.linear.z = MyMath::clamp<double>(hover_vel.linear.z, -1, 1);
-            mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
 
-
-            // pose.pose = start_pose.pose;
-            // local_linear_vel_pub.publish(linear_vel_msg);
-
+            if(PUB_MODE == "ATTI")
+            {
+                mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
+            }
+            else if(PUB_MODE == "RATE")
+            {
+                mavros_utils_ptr->hover_update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
+                des_rate(0) = mavros_utils_ptr->_mav_atti_cmd.rate(0);
+                des_rate(1) = mavros_utils_ptr->_mav_atti_cmd.rate(1);
+                des_rate(2) = mavros_utils_ptr->_mav_atti_cmd.rate(2);
+                des_rate(3) = mavros_utils_ptr->_mav_atti_cmd.thrust;
+            }
         }
         else if (fsm.now_state == CtrlFSM::RUNNING)
         {
@@ -251,44 +280,42 @@ int main(int argc, char **argv)
             {
                 ROS_INFO_STREAM("MODE: RUNNING");
             }
-            mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(airgym_vel));
 
-            
         }
 
         else if (fsm.now_state == CtrlFSM::LANDING)
         {
             if (fsm.last_state != CtrlFSM::LANDING)
             {
-                start_pose.pose.position.x = mavros_utils._mav_odom.position(0);
-                start_pose.pose.position.y = mavros_utils._mav_odom.position(1);
-                start_pose.pose.position.z = mavros_utils._mav_odom.position(2);
-                start_pose.pose.orientation.x =  mavros_utils._mav_odom.attitude.x();
-                start_pose.pose.orientation.y =  mavros_utils._mav_odom.attitude.y();
-                start_pose.pose.orientation.z =  mavros_utils._mav_odom.attitude.z();
-                start_pose.pose.orientation.w =  mavros_utils._mav_odom.attitude.w();
+                start_pose.pose.position.x = mavros_utils_ptr->_mav_odom.position(0);
+                start_pose.pose.position.y = mavros_utils_ptr->_mav_odom.position(1);
+                start_pose.pose.position.z = mavros_utils_ptr->_mav_odom.position(2);
+                start_pose.pose.orientation.x =  mavros_utils_ptr->_mav_odom.attitude.x();
+                start_pose.pose.orientation.y =  mavros_utils_ptr->_mav_odom.attitude.y();
+                start_pose.pose.orientation.z =  mavros_utils_ptr->_mav_odom.attitude.z();
+                start_pose.pose.orientation.w =  mavros_utils_ptr->_mav_odom.attitude.w();
                 ROS_INFO("MODE: LAND");
                 hover_above_land_start_time = ros::Time::now();
             }
 
             geometry_msgs::Twist land_vel;
-            land_vel.linear.x = -(mavros_utils._mav_odom.position(0) - start_pose.pose.position.x)*3; 
-            land_vel.linear.y = -(mavros_utils._mav_odom.position(1) - start_pose.pose.position.y)*3; 
+            land_vel.linear.x = -(mavros_utils_ptr->_mav_odom.position(0) - start_pose.pose.position.x)*3; 
+            land_vel.linear.y = -(mavros_utils_ptr->_mav_odom.position(1) - start_pose.pose.position.y)*3; 
             land_vel.linear.z = -0.3; 
             land_vel.linear.x = MyMath::clamp<double>(land_vel.linear.x, -1, 1);
             land_vel.linear.y = MyMath::clamp<double>(land_vel.linear.y, -1, 1);
             land_vel.linear.z = MyMath::clamp<double>(land_vel.linear.z, -1, 1);
 
 
-            mavros_utils.update(boost::make_shared<geometry_msgs::Twist>(land_vel));
+            mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(land_vel));
 
-            if(mavros_utils.get_hover_thrust() > 0.11)
+            if(mavros_utils_ptr->get_hover_thrust() > 0.11)
             {
                 hover_above_land_start_time = ros::Time::now();
             }
             if(ros::Time::now() -  hover_above_land_start_time > ros::Duration(2))
             {
-                mavros_utils.request_disarm();
+                mavros_utils_ptr->request_disarm();
             }
 
             // if (current_state.mode != "AUTO.LAND" &&
@@ -303,8 +330,16 @@ int main(int argc, char **argv)
         {
             fsm.set_land_flag(true);
         }
-        
-        mavros_utils.send_atti_cmd();
+        if(PUB_MODE == "ATTI")
+        {
+            mavros_utils_ptr->send_atti_cmd();
+        }
+        else if(PUB_MODE == "RATE")
+        {
+
+            mavros_utils_ptr->send_rate_cmd(des_rate,des_thrust);
+        }
+
 
         ros::spinOnce();
         rate.sleep();

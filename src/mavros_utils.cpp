@@ -18,11 +18,19 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh)
 
     arming_client = _nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     set_mode_client = _nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+
+    
 }
 MavrosUtils::~MavrosUtils()
 {
 }
+void MavrosUtils::hover_update(geometry_msgs::Twist::ConstPtr cmd)
+{
+    controller.update(cmd, 0.0, 0.01); // dt 暂时无用
+    _mav_atti_cmd.thrust = controller.thrust_exp;
+    _mav_atti_cmd.rate = atti_controller.update(controller.q_exp,_mav_odom.attitude);
 
+}
 void MavrosUtils::update(geometry_msgs::Twist::ConstPtr cmd)
 {
 
@@ -37,6 +45,24 @@ void MavrosUtils::set_motors_idling()
     _mav_atti_cmd.attitude = _mav_odom.attitude;
     _mav_atti_cmd.thrust = 0.04;
 }
+
+void MavrosUtils::send_rate_cmd(Eigen::Vector3d des_body_rate,double des_thrust)
+{
+    mavros_msgs::AttitudeTarget msg;
+    msg.header.stamp = ros::Time::now();
+    msg.header.frame_id = std::string("FCU");
+
+    msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+
+    msg.body_rate.x = des_body_rate(0);
+    msg.body_rate.y = des_body_rate(1);
+    msg.body_rate.z = des_body_rate(2);
+
+    msg.thrust = des_thrust;    // enu z axis
+
+    mav_atti_ctrl_pub.publish(msg);
+}
+
 void MavrosUtils::send_atti_cmd()
 {
     mavros_msgs::AttitudeTarget msg;
@@ -72,6 +98,10 @@ void MavrosUtils::connect()
     // TODO:send a few setpoints before starting
     // 对于 /setpoint_raw/attitude 似乎不需要也可以
 }
+
+
+
+// ///////////////// Checkout Status
 
 bool MavrosUtils::request_offboard()
 {
@@ -114,6 +144,9 @@ bool MavrosUtils::request_disarm()
     }
     return false;
 }
+
+
+/////////////////////////// callback
 void MavrosUtils::mav_state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
     _mav_state.armed = msg->armed;
@@ -163,6 +196,7 @@ void MavrosUtils::mav_atti_target_cb(const mavros_msgs::AttitudeTarget::ConstPtr
 {
     _mav_atti_cmd.target_thrust = msg->thrust;
     ROS_INFO_STREAM("_mav_odom.acc(2)" << _mav_odom.acc(2) << "_mav_atti_cmd.target_thrust"<< _mav_atti_cmd.target_thrust);
+
     hoverThrustEkf->fuseAccZ(_mav_odom.acc(2)-CONSTANTS_ONE_G, _mav_atti_cmd.target_thrust);
     hoverThrustEkf->printLog();
 }

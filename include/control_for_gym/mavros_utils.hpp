@@ -16,6 +16,8 @@
 #include <Eigen/Eigen>
 #include "control_for_gym/linear_controller.hpp"
 #include "control_for_gym/my_math.hpp"
+
+#include "control_for_gym/Px4AttitudeController.hpp"
 struct mav_state
 {
     bool connected = false;
@@ -34,6 +36,7 @@ struct mav_odom
 struct mav_atti_command
 {
     Eigen::Quaterniond attitude;
+    Eigen::Vector3d rate;
     double thrust; //(-1,1)
     double target_thrust;
 };
@@ -43,7 +46,6 @@ class MavrosUtils
 private:
     HoverThrustEkf *hoverThrustEkf;
     mav_state _mav_state;
-    mav_atti_command _mav_atti_cmd;
     ros::Subscriber mav_state_sub;
     ros::Subscriber mav_current_odom_sub;
     ros::Subscriber mav_vel_sub;
@@ -58,10 +60,13 @@ private:
     bool is_offboard = false;
     double _hover_thrust=0.3;
 
+    Px4AttitudeController atti_controller;
+
 public:
     MavrosUtils(ros::NodeHandle &_nh);
     ~MavrosUtils();
     mav_odom _mav_odom;
+    mav_atti_command _mav_atti_cmd;
 
     LinearControl controller;
     void connect();
@@ -73,8 +78,13 @@ public:
     bool request_arm();
     bool request_offboard();
     bool request_disarm();
+
+
+    void send_rate_cmd(Eigen::Vector3d des_body_rate,double des_thrust);
     void send_atti_cmd();
     void set_motors_idling();
+
+    // quick function
     double get_hover_thrust()
     {
         return _hover_thrust;
@@ -90,6 +100,8 @@ public:
         return _mav_state.armed;
     }
     void update(geometry_msgs::Twist::ConstPtr cmd);
+    void hover_update(geometry_msgs::Twist::ConstPtr cmd);
+
 };
 
 #endif
