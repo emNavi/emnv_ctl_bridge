@@ -211,7 +211,28 @@ int main(int argc, char **argv)
             {
                 fsm.set_arm_flag(true);
             }
-            mavros_utils_ptr->set_motors_idling(); //不能停
+            
+            if(PUB_MODE == "ATTI")
+
+            {
+
+                mavros_utils_ptr->set_motors_idling(); //不能停
+
+            }
+
+            else if(PUB_MODE == "RATE")
+
+            {
+
+                des_rate(0) = mavros_utils_ptr->_mav_odom.rate(0);
+
+                des_rate(1) = mavros_utils_ptr->_mav_odom.rate(1);
+
+                des_rate(2) = mavros_utils_ptr->_mav_odom.rate(2);
+
+                des_thrust = 0.04;
+
+            }
 
 
         }
@@ -234,7 +255,18 @@ int main(int argc, char **argv)
             takeoff_vel.linear.z = MyMath::clamp<double>(takeoff_vel.linear.z, -1, 1);
 
 
-            mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
+            if(PUB_MODE == "ATTI")
+            {
+                mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
+            }
+            else if(PUB_MODE == "RATE")
+            {
+                mavros_utils_ptr->hover_update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
+                des_rate(0) = mavros_utils_ptr->_mav_atti_cmd.rate(0);
+                des_rate(1) = mavros_utils_ptr->_mav_atti_cmd.rate(1);
+                des_rate(2) = mavros_utils_ptr->_mav_atti_cmd.rate(2);
+                des_thrust = mavros_utils_ptr->_mav_atti_cmd.thrust;
+            }
             if (abs(mavros_utils_ptr->_mav_odom.position(2) - param.takeoff_height) < 0.1)
             {
 

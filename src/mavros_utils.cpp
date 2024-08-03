@@ -28,7 +28,7 @@ void MavrosUtils::hover_update(geometry_msgs::Twist::ConstPtr cmd)
 {
     controller.update(cmd, 0.0, 0.01); // dt 暂时无用
     _mav_atti_cmd.thrust = controller.thrust_exp;
-    _mav_atti_cmd.rate = atti_controller.update(controller.q_exp,_mav_odom.attitude);
+    _mav_atti_cmd.rate = atti_controller.update(_mav_odom.attitude,controller.q_exp);
 
 }
 void MavrosUtils::update(geometry_msgs::Twist::ConstPtr cmd)
