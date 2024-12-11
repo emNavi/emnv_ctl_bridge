@@ -83,6 +83,20 @@ void des_body_rate_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
     }
 }
 
+void des_atti_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
+{
+    fsm.update_cmd_update_time(ros::Time::now());
+    if (fsm.now_state == CtrlFSM::RUNNING)
+    {
+        _mav_atti_cmd.attitude.x() = msg->orientation.x;
+        _mav_atti_cmd.attitude.y() = msg->orientation.y;
+        _mav_atti_cmd.attitude.z() = msg->orientation.z;
+        _mav_atti_cmd.attitude.w() = msg->orientation.w;
+        _mav_atti_cmd.thrust = msg->thrust;
+
+    }
+}
+
 void vrpn_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {    // 创建一个新的 PoseStamped 消息
     geometry_msgs::PoseStamped modified_msg;
@@ -161,6 +175,7 @@ int main(int argc, char **argv)
     // direct command
     ros::Subscriber  pva_yaw_sub= nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
     ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_sp_sub", 10, local_linear_vel_cb);
+    ros::Subscriber local_linear_vel_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("atti_sp_sub", 10, des_atti_cb);
     ros::Subscriber rate_sp_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("rate_sp_sub", 10, des_body_rate_cb);
 
     ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, param.drone_id));
