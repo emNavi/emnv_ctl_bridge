@@ -66,7 +66,7 @@ void local_linear_vel_cb(const geometry_msgs::Twist::ConstPtr &msg)
 
     }
 }
-mavros_msgs::AttitudeTarget des_body_rate;
+
 Eigen::Vector3d des_rate;
 double des_thrust;
 
@@ -75,7 +75,6 @@ void des_body_rate_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
     fsm.update_cmd_update_time(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
-        des_body_rate.body_rate = msg->body_rate;
         des_rate(0) = msg->body_rate.x;
         des_rate(1) = msg->body_rate.y;
         des_rate(2) = msg->body_rate.z;
@@ -142,12 +141,12 @@ int main(int argc, char **argv)
 
     nh.param<int>("drone_id", param.drone_id, 99);
     nh.param<double>("takeoff_height", param.takeoff_height, 0.3);
-    nh.param<std::string>("cmd_pub_type", param.cmd_pub_type, "ATTI");
+    nh.param<std::string>("cmd_pub_type", param.cmd_pub_type, PUB_MODE);
 
 
 
     std::cout << "drone id " << param.drone_id << std::endl;
-    std::cout << "takeoff_height" << param.cmd_pub_type << std::endl;
+    std::cout << "takeoff_height" << param.takeoff_height << std::endl;
     ros::Time hover_above_land_start_time = ros::Time::now();
 
     mavros_utils_ptr = new MavrosUtils(nh);
@@ -162,7 +161,7 @@ int main(int argc, char **argv)
     // direct command
     ros::Subscriber  pva_yaw_sub= nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
     ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_sp_sub", 10, local_linear_vel_cb);
-    ros::Subscriber rate_sp_sub = nh.subscribe<geometry_msgs::Twist>("rate_sp_sub", 10, local_linear_vel_cb);
+    ros::Subscriber rate_sp_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("rate_sp_sub", 10, des_body_rate_cb);
 
     ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, param.drone_id));
     ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, param.drone_id));
@@ -212,7 +211,7 @@ int main(int argc, char **argv)
                 fsm.set_arm_flag(true);
             }
             
-            if(PUB_MODE == "ATTI")
+            if(param.cmd_pub_type == "ATTI")
 
             {
 
@@ -220,7 +219,7 @@ int main(int argc, char **argv)
 
             }
 
-            else if(PUB_MODE == "RATE")
+            else if(param.cmd_pub_type == "RATE")
 
             {
 
@@ -241,6 +240,7 @@ int main(int argc, char **argv)
             if (fsm.last_state != CtrlFSM::TAKEOFF)
             {
                 ROS_INFO("MODE: TAKEOFF");
+                // mavros_utils_ptr->_mav_odom comes from /mavros/local_position/odom
                 start_pose.pose.position.x = mavros_utils_ptr->_mav_odom.position(0);
                 start_pose.pose.position.y = mavros_utils_ptr->_mav_odom.position(1);
                 start_pose.pose.position.z = param.takeoff_height;
@@ -255,11 +255,11 @@ int main(int argc, char **argv)
             takeoff_vel.linear.z = MyMath::clamp<double>(takeoff_vel.linear.z, -1, 1);
 
 
-            if(PUB_MODE == "ATTI")
+            if(param.cmd_pub_type == "ATTI")
             {
                 mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
             }
-            else if(PUB_MODE == "RATE")
+            else if(param.cmd_pub_type == "RATE")
             {
                 mavros_utils_ptr->hover_update(boost::make_shared<geometry_msgs::Twist>(takeoff_vel));
                 des_rate(0) = mavros_utils_ptr->_mav_atti_cmd.rate(0);
@@ -299,11 +299,11 @@ int main(int argc, char **argv)
             hover_vel.linear.y = MyMath::clamp<double>(hover_vel.linear.y, -1, 1);
             hover_vel.linear.z = MyMath::clamp<double>(hover_vel.linear.z, -1, 1);
 
-            if(PUB_MODE == "ATTI")
+            if(param.cmd_pub_type == "ATTI")
             {
                 mavros_utils_ptr->update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
             }
-            else if(PUB_MODE == "RATE")
+            else if(param.cmd_pub_type == "RATE")
             {
                 mavros_utils_ptr->hover_update(boost::make_shared<geometry_msgs::Twist>(hover_vel));
                 des_rate(0) = mavros_utils_ptr->_mav_atti_cmd.rate(0);
@@ -368,11 +368,11 @@ int main(int argc, char **argv)
         {
             fsm.set_land_flag(true);
         }
-        if(PUB_MODE == "ATTI")
+        if(param.cmd_pub_type == "ATTI")
         {
             mavros_utils_ptr->send_atti_cmd();
         }
-        else if(PUB_MODE == "RATE")
+        else if(param.cmd_pub_type == "RATE")
         {
             // ROS_INFO_STREAM()
             mavros_utils_ptr->send_rate_cmd(des_rate,des_thrust);

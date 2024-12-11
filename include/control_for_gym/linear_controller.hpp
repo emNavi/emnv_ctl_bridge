@@ -9,6 +9,7 @@
 
 //  在世界坐标系下完成
 class LinearControl
+// This class is a simple velocity controller for landing and hovering
 {
 private:
     Derivate velDerivateZ_;

@@ -8,13 +8,13 @@
         <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
         <!-- <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/> -->
 
-        <arg name="gcs_url" value="udp://:14550@10.42.0.200:14550"/>
+        <arg name="gcs_url" value="udp://:14550@192.168.8.10:14550"/>
     </include>
 
     <node name = "ctrl_bridge" pkg = "control_for_gym" type = "ctrl_bridge" output = "screen">
         <!-- choose One -->
-        <remap from="~vel_sp_sub" to="/airgym/cmd"/>
-        <remap from="~rate_sp_sub" to="/ipc/rate_cmd"/>
+        <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
+        <remap from="~rate_sp_sub" to="/airgym/cmd"/>
 
 
         <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>

@@ -11,7 +11,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh)
     imu_sub = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mav_imu_cb, this);
 
     // Note: do NOT change it to /mavros/imu/data_raw !!!
-    mav_atti_ctrl_pub = _nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
+    mav_atti_ctrl_pub = _nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10); // give atti cmd
 
     // mav_atti_target_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mav_atti_target_cb, this);
     mav_atti_target_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mav_atti_target_cb, this);
