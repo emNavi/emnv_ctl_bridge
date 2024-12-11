@@ -368,11 +368,11 @@ int main(int argc, char **argv)
         {
             fsm.set_land_flag(true);
         }
-        if(param.cmd_pub_type == "ATTI")
+        if(param.cmd_pub_type == "ATTI") // send quaternion control cmd to PX
         {
             mavros_utils_ptr->send_atti_cmd();
         }
-        else if(param.cmd_pub_type == "RATE")
+        else if(param.cmd_pub_type == "RATE") // send rate control cmd to PX
         {
             // ROS_INFO_STREAM()
             mavros_utils_ptr->send_rate_cmd(des_rate,des_thrust);
