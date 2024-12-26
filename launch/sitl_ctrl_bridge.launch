@@ -1,15 +1,16 @@
 <launch>
     <arg name = "drone_id" default = "1"/>
-    <arg name = "takeoff_height" default = "1.1"/>
+    <arg name = "takeoff_height" default = "1.2"/>
     <arg name = "in_real" default="true" />
-    <arg name = "ctrl_out_level" default = "RATE"/>
+    <!-- RATE or ATTI -->
+    <arg name = "ctrl_out_level" default = "RATE"/> 
     <!-- <arg name = "cmd_pub_type" default = "ATTI"/> -->
 
     <include if="$(arg in_real)" file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
-        <!-- <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/> -->
+        <!-- <arg name="fcu_url" value="/dev/ttyACM0:921600"/> -->
+        <arg name="fcu_url" value="udp://:14540@127.0.0.1:18570"/>
 
-        <arg name="gcs_url" value="udp://:14540@192.168.8.10:14550"/>
+        <!-- <arg name="gcs_url" value="udp://:14550@192.168.8.10:14550"/> -->
     </include>
 
     <node name = "ctrl_bridge" pkg = "control_for_gym" type = "ctrl_bridge" output = "screen">
@@ -24,7 +25,6 @@
         <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
         <param name ="ctrl_out_level" value="$(arg ctrl_out_level)"/>
-        <!-- RATE or ATTI -->
 
     </node>
 </launch>

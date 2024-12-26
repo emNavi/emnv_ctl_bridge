@@ -7,21 +7,21 @@ class CtrlFSM
 public:
     enum State_t
     {
-        INIT_PARAM = 1,
+        INITIAL = 1,
         TAKEOFF,
         HOVER,
         RUNNING,
         LANDING
     };
-    State_t now_state = INIT_PARAM;
-    State_t last_state = INIT_PARAM;
+    State_t now_state = INITIAL;
+    State_t last_state = INITIAL;
     ros::Time last_try_offboard_time;
     ros::Time last_try_arm_time;
     ros::Time last_try_land_time;
     void Init_FSM()
     {
-        now_state = INIT_PARAM;
-        last_state = INIT_PARAM;
+        now_state = INITIAL;
+        last_state = INITIAL;
         offboard_flag = false;
         takeoff_over_flag = false;
         land_flag = false;
@@ -41,7 +41,7 @@ public:
         last_state = now_state;
         switch (now_state)
         {
-        case INIT_PARAM:
+        case INITIAL:
         {
             if (get_arm_flag() && get_offboard_flag())
             {
