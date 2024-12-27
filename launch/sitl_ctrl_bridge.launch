@@ -1,5 +1,5 @@
 <launch>
-    <arg name = "drone_id" default = "1"/>
+    <arg name = "drone_name" default = "drone"/>
     <arg name = "takeoff_height" default = "1.2"/>
     <arg name = "in_real" default="true" />
     <!-- RATE or ATTI -->
@@ -19,10 +19,7 @@
         <remap from="~rate_sp_sub" to="/airgym/cmd"/>
         <!-- <remap from="~atti_sp_sub" to="/airgym/cmd"/> -->
 
-        <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
-
-
-        <param name ="drone_id" value="$(arg drone_id)"/>
+        <!-- <param name ="drone_id" value="$(arg drone_id)"/> -->
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
         <param name ="ctrl_out_level" value="$(arg ctrl_out_level)"/>
 

@@ -32,3 +32,13 @@ add_executable(ekf_test src/ekf_hover_test.cpp)
 target_link_libraries(ekf_test
   ${catkin_LIBRARIES}
 )
+
+set(SETUP_BASH_FILE "${CMAKE_BINARY_DIR}/../devel/setup.bash")
+set(SCRIPT_PATH "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/Tools/help_func.sh")
+
+
+# 将脚本路径添加到 setup.bash 文件
+add_custom_command(
+  TARGET ctrl_bridge POST_BUILD
+  COMMAND echo "source ${SCRIPT_PATH}" >> ${SETUP_BASH_FILE}
+)

@@ -43,7 +43,7 @@ public:
         {
         case INITIAL:
         {
-            if (get_arm_flag() && get_offboard_flag())
+            if (getArmFlag() && getOffboardFlag())
             {
                 now_state = TAKEOFF;
             }
@@ -51,7 +51,7 @@ public:
         }
         case TAKEOFF:
         {
-            if (get_takeoff_over_flag())
+            if (getTakeoffOverFlag())
             {
                 now_state = HOVER;
             }
@@ -59,12 +59,12 @@ public:
         }
         case HOVER:
         {
-            if (is_cmd_vaild())
+            if (isCmdVaild())
             {
                 now_state = RUNNING;
             }
 
-            if (get_land_flag())
+            if (getLandFlag())
             {
                 now_state = LANDING;
             }
@@ -74,12 +74,12 @@ public:
 
         case RUNNING:
         {
-            if (!is_cmd_vaild())
+            if (!isCmdVaild())
             {
                 now_state = HOVER;
             }
 
-            if (get_land_flag())
+            if (getLandFlag())
             {
                 now_state = LANDING;
             }
@@ -91,49 +91,49 @@ public:
         }
     }
     // ********************************
-    bool get_offboard_flag()
+    bool getOffboardFlag()
     {
         return offboard_flag;
     }
-    void set_offboard_flag(bool flag)
+    void setOffboardFlag(bool flag)
     {
         offboard_flag = flag;
     }
 
-    bool get_takeoff_over_flag()
+    bool getTakeoffOverFlag()
     {
         return takeoff_over_flag;
     }
-    void set_takeoff_over_flag(bool flag)
+    void setTakeoffOverFlag(bool flag)
     {
         takeoff_over_flag = flag;
     }
 
-    bool get_arm_flag()
+    bool getArmFlag()
     {
         return arm_done_flag;
     }
-    void set_arm_flag(bool flag)
+    void setArmFlag(bool flag)
     {
         arm_done_flag = flag;
     }
 
-    bool get_land_flag()
+    bool getLandFlag()
     {
         return land_flag;
     }
 
-    void set_land_flag(bool flag)
+    void setLandFlag(bool flag)
     {
         land_flag = flag;
     }
     // ********************************
 
-    void update_cmd_update_time(ros::Time now_time)
+    void updateCtrlCmdTimestamp(ros::Time now_time)
     {
         last_recv_pva_time = now_time;
     }
-    bool is_cmd_vaild()
+    bool isCmdVaild()
     {
 
         if (ros::Time::now() - last_recv_pva_time < ros::Duration(1.0))
