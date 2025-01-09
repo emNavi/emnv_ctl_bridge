@@ -1,6 +1,6 @@
 <launch>
     <arg name = "drone_id" default = "1"/>
-    <arg name = "takeoff_height" default = "0.6"/>
+    <arg name = "takeoff_height" default = "1.1"/>
     <arg name = "in_real" default="true" />
     <arg name = "cmd_pub_type" default = "RATE"/>
 

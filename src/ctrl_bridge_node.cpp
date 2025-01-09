@@ -16,6 +16,7 @@
 
 #include "control_for_gym/FSM.hpp"
 #include "control_for_gym/mavros_utils.hpp"
+#include <mavros_msgs/RCIn.h>
 
 
 #define ROS_RATE 100.0
@@ -38,6 +39,28 @@ bool land_cmd_flag = false;
 
 
 // callback begin************************
+// 回调函数，处理订阅到的消息
+bool f_rc_enable_ctl_stream = false;
+void rcInCallback(const mavros_msgs::RCIn::ConstPtr& msg)
+{
+    static bool last_f_rc_enable_ctl_stream=false;
+
+    if( msg->channels[8] > 1800)
+    {
+        f_rc_enable_ctl_stream = true;
+
+    }
+    else
+    {
+        f_rc_enable_ctl_stream = false;
+    }
+    if(last_f_rc_enable_ctl_stream != f_rc_enable_ctl_stream)
+    {
+        ROS_INFO_STREAM("rc_ctl_stream_flag change to "<<f_rc_enable_ctl_stream);
+    }
+    last_f_rc_enable_ctl_stream = f_rc_enable_ctl_stream;
+}
+
 
 void pva_yaw_cb(const mavros_msgs::PositionTarget::ConstPtr &msg)
 {
@@ -72,6 +95,10 @@ double des_thrust;
 
 void des_body_rate_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
 {
+    if(!f_rc_enable_ctl_stream)
+    {
+        return;
+    }
     fsm.update_cmd_update_time(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
@@ -88,11 +115,11 @@ void des_atti_cb(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
     fsm.update_cmd_update_time(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
-        _mav_atti_cmd.attitude.x() = msg->orientation.x;
-        _mav_atti_cmd.attitude.y() = msg->orientation.y;
-        _mav_atti_cmd.attitude.z() = msg->orientation.z;
-        _mav_atti_cmd.attitude.w() = msg->orientation.w;
-        _mav_atti_cmd.thrust = msg->thrust;
+        mavros_utils_ptr->_mav_atti_cmd.attitude.x() = msg->orientation.x;
+        mavros_utils_ptr->_mav_atti_cmd.attitude.y() = msg->orientation.y;
+        mavros_utils_ptr->_mav_atti_cmd.attitude.z() = msg->orientation.z;
+        mavros_utils_ptr->_mav_atti_cmd.attitude.w() = msg->orientation.w;
+        mavros_utils_ptr->_mav_atti_cmd.thrust = msg->thrust;
 
     }
 }
@@ -175,13 +202,14 @@ int main(int argc, char **argv)
     // direct command
     ros::Subscriber  pva_yaw_sub= nh.subscribe<mavros_msgs::PositionTarget>("pos_cmd", 10, pva_yaw_cb);
     ros::Subscriber local_linear_vel_sub = nh.subscribe<geometry_msgs::Twist>("vel_sp_sub", 10, local_linear_vel_cb);
-    ros::Subscriber local_linear_vel_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("atti_sp_sub", 10, des_atti_cb);
+    // ros::Subscriber local_linear_vel_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("atti_sp_sub", 10, des_atti_cb);
     ros::Subscriber rate_sp_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("rate_sp_sub", 10, des_body_rate_cb);
 
     ros::Subscriber takeoff_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_takeoff", 10, boost::bind(takeoff_cmd_cb, _1, param.drone_id));
     ros::Subscriber land_cmd_sub = nh.subscribe<std_msgs::Float32MultiArray>("/swarm_land", 10, boost::bind(land_cmd_cb, _1, param.drone_id));
     
     vision_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
+    ros::Subscriber rc_sub = nh.subscribe("/mavros/rc/in", 10, rcInCallback);
 
 
     mavros_utils_ptr->connect();
