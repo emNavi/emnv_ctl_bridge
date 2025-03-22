@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(control_for_gym)
+project(ctrl_bridge)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   # path_searching_pkg
   # poly_curves_pkg
 )
+find_package(Eigen3 REQUIRED)
 
 catkin_package(
   # CATKIN_DEPENDS 
@@ -21,6 +22,7 @@ catkin_package(
 
 include_directories(
   include
+  ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 

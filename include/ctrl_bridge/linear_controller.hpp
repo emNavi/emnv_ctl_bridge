@@ -2,8 +2,8 @@
 #define __LINEAR_CONTROL_HPP
 
 #include <geometry_msgs/Twist.h>
-#include "control_for_gym/hover_thrust_ekf.hpp"
-#include "control_for_gym/my_math.hpp"
+#include "ctrl_bridge/hover_thrust_ekf.hpp"
+#include "ctrl_bridge/my_math.hpp"
 #include <Eigen/Eigen>
 #include "derivative.hpp"
 

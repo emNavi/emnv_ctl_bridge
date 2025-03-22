@@ -5,6 +5,7 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/AttitudeTarget.h>
+#include <mavros_msgs/RCIn.h>
 
 
 #include <nav_msgs/Odometry.h>
@@ -14,13 +15,92 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <boost/shared_ptr.hpp>
 
-#include "control_for_gym/FSM.hpp"
-#include "control_for_gym/mavros_utils.hpp"
-#include <mavros_msgs/RCIn.h>
+#include "ctrl_bridge/FSM.hpp"
+#include "ctrl_bridge/mavros_utils.hpp"
 
 
-#define ROS_RATE 100.0
-#define PUB_MODE "ATTI"
+//默认设置，可以在launch文件中修改
+#define CMD_PUB_RATE 100.0
+#define PUB_DEFAULT_MODE "ATTI"
+
+enum class CtrlMode {
+    QUAD_T,
+    RATE_T,
+    PVA_Ys,
+    Unknown // 处理无效输入
+};
+
+
+enum class CmdPubType {
+    ATTI,
+    RATE,
+    POSY,
+    Unknown // 处理无效输入
+};
+
+// 创建一个映射关系
+std::map<std::string, CmdPubType> cmdPubMap = {
+    {"ATTI", CmdPubType::ATTI},
+    {"RATE", CmdPubType::RATE},
+    {"POSY", CmdPubType::POSY}
+};
+// 创建一个映射关系
+std::map<std::string, CtrlMode> ctrlModeMap = {
+    {"ATTI", CtrlMode::QUAD_T},
+    {"RATE", CtrlMode::RATE_T},
+    {"POSY", CtrlMode::PVA_Ys}
+};
+
+int process_mode(ros::NodeHandle nh)
+{
+    std::string cmd_pub_type;
+    std::string ctrl_mode;
+    nh.getParam("ctrl_mode", ctrl_mode);
+    nh.getParam("cmd_pub_type", cmd_pub_type);
+    CmdPubType cmd_pub_type_enum = cmdPubMap[cmd_pub_type];
+    CtrlMode ctrl_mode_enum = ctrlModeMap[cmd_pub_type];
+    if(cmd_pub_type_enum == CmdPubType::Unknown || ctrl_mode_enum == CtrlMode::Unknown)
+    {
+        // 不一定管用
+        ROS_ERROR("Invalid input");
+        return -1;
+    }
+
+    if(cmd_pub_type_enum == CmdPubType::ATTI)
+    {
+        if(ctrl_mode_enum == CtrlMode::QUAD_T)
+        {
+            return 0;
+        }
+        else if (ctrl_mode_enum == CtrlMode::RATE_T)
+        {
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"cmd_pub_type\"");
+            return -1;
+        }
+    }
+    else if(cmd_pub_type_enum == CmdPubType::RATE)
+    {
+        if (ctrl_mode_enum == CtrlMode::RATE_T || ctrl_mode_enum == CtrlMode::QUAD_T || ctrl_mode_enum == CtrlMode::PVA_Ys)
+        {
+            return 0;
+        }
+        else{
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"cmd_pub_type\"");
+            return -1;
+        }
+    }
+    else if(cmd_pub_type_enum == CmdPubType::POSY)
+    {
+        if (ctrl_mode_enum == CtrlMode::RATE_T || ctrl_mode_enum == CtrlMode::QUAD_T)
+        {
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"cmd_pub_type\"");
+            return -1;
+        }
+    }
+}
+
+
+
 
 mavros_msgs::CommandBool arm_cmd;
 ros::Publisher local_raw_pub, local_linear_vel_pub,atti_ctrl_pub;
@@ -178,11 +258,20 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "uav_ctrl_node");
     ros::NodeHandle nh("~");
 
+
+
+
+    process_mode(nh);
+
+
     node_param param;
+
+
+    
 
     nh.param<int>("drone_id", param.drone_id, 99);
     nh.param<double>("takeoff_height", param.takeoff_height, 0.3);
-    nh.param<std::string>("cmd_pub_type", param.cmd_pub_type, PUB_MODE);
+    nh.param<std::string>("cmd_pub_type", param.cmd_pub_type, PUB_DEFAULT_MODE);
 
 
 
@@ -213,21 +302,28 @@ int main(int argc, char **argv)
 
 
     mavros_utils_ptr->connect();
-    ros::Rate rate(ROS_RATE);
+    ros::Rate rate(CMD_PUB_RATE);
     /* ------------------init params --------------------------------------------------*/
     geometry_msgs::PoseStamped start_pose;
     /* ------------------init params done --------------------------------------------*/
     while (ros::ok())
     {
         fsm.process();
-        if (fsm.now_state == CtrlFSM::INIT_PARAM)
+        if (fsm.now_state == CtrlFSM::IDLE)
         {
+            if (fsm.last_state != CtrlFSM::IDLE)
+            {
+                ROS_INFO("MODE: IDLE");
+            }
             if (!f_recv_takeoff_cmd)
             {
                 ros::spinOnce();
                 ros::Rate(10).sleep();
                 continue;
             }
+        }
+        else if (fsm.now_state == CtrlFSM::INIT_PARAM)
+        {
             // Request offboard and Arm
             if (!mavros_utils_ptr->isOffboardMode() &&
                 (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))

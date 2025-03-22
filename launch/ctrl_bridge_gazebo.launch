@@ -2,29 +2,26 @@
     <arg name = "drone_id" default = "1"/>
     <arg name = "takeoff_height" default = "1.1"/>
     <arg name = "in_real" default="true" />
-
-
+    <!-- RATE,ATTI,POSY  -->
     <arg name = "cmd_pub_type" default = "RATE"/>
+    <!--   QUAD_T, RATE_T, PVA_Ys, -->
+    <arg name = "ctrl_mode" default = "RATE"/>
 
-    <include if="$(arg in_real)" file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
-        <!-- <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/> -->
-
+    <include file="$(find mavros)/launch/px4.launch">
+        <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/>
         <arg name="gcs_url" value="udp://:14550@192.168.8.10:14550"/>
     </include>
 
     <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen">
         <!-- choose One -->
-        <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
-        <remap from="~rate_sp_sub" to="/airgym/cmd"/>
-
-
+        <remap from="~ctrl_cmd_sub" to="/airgym/cmd"/>
         <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
-
 
         <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
         <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+
         <!-- RATE or ATTI -->
 
     </node>

@@ -14,10 +14,10 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <strings.h>
 #include <Eigen/Eigen>
-#include "control_for_gym/linear_controller.hpp"
-#include "control_for_gym/my_math.hpp"
+#include "ctrl_bridge/linear_controller.hpp"
+#include "ctrl_bridge/my_math.hpp"
 
-#include "control_for_gym/Px4AttitudeController.hpp"
+#include "ctrl_bridge/Px4AttitudeController.hpp"
 struct mav_state
 {
     bool connected = false;

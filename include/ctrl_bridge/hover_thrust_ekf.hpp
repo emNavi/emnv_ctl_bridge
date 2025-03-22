@@ -2,7 +2,7 @@
 #define __HOVER_THRUST_EKF_HPP
 #include <cmath>
 #include <iostream>
-#include "control_for_gym/my_math.hpp"
+#include "ctrl_bridge/my_math.hpp"
 
 static constexpr float CONSTANTS_ONE_G = 9.80665f;						// m/s^2
 
