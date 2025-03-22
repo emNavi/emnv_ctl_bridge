@@ -3,12 +3,23 @@
 emnavi_ctl_bridge 是介于 px4 和 用户算法之间的中间件。通过将常用功能封装，方便调试阶段的开发。
 
 ## 软件在环使用
-
+## Command
 ```bash
-
+# source src/control_for_gym/Tools/help_func.sh # 默认已经包含在了 devel/setup.bash 中
+takeoff drone
+land drone
+# "drone" 是一个参数，在launch文件中配置
 ```
-roslaunch ctrl_bridge uav_ctrl.launch
 
+## Real Env
+```bash
+roslaunch control_for_gym ctrl_bridge.launch
+```
+## Gazebo Env
+Connect with gazebo_sitl
+```bash
+roslaunch control_for_gym sitl_ctrl_bridge.launch
+```
 
 ## Ctrl Mode
 

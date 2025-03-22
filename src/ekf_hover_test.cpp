@@ -27,7 +27,7 @@ int main()
     double time=0;
     double acc_z=0;
 
-    HoverThrustEkf hoverThrustEkf(0.4f,0.1f,0.036f);
+    HoverThrustEkf hover_thrust_ekf_(0.4f,0.1f,0.036f);
     // pic6c中设置的 process noise 仅为0.0036 ， 这里放大了一点
 
     while (time<5)
@@ -37,12 +37,12 @@ int main()
         acc_z= CONSTANTS_ONE_G * thrust / hover_thrust_true+ acc_z_noise(gen);
         //  - CONSTANTS_ONE_G 
         // EKF
-        hoverThrustEkf.predict(0.02); //dt
-        hoverThrustEkf.fuseAccZ(acc_z,thrust);         
+        hover_thrust_ekf_.predict(0.02); //dt
+        hover_thrust_ekf_.fuseAccZ(acc_z,thrust);         
         time +=0.02;
-        // hoverThrustEkf.printLog();
-        std::cout<<"_hover_thr "<<hoverThrustEkf.getHoverThrust() << " thrust " << thrust <<  " acc_z " << acc_z <<std::endl;
-        outputFile << time << " "<< hoverThrustEkf.getHoverThrust() << std::endl;
+        // hover_thrust_ekf_.printLog();
+        std::cout<<"_hover_thr "<<hover_thrust_ekf_.getHoverThrust() << " thrust " << thrust <<  " acc_z " << acc_z <<std::endl;
+        outputFile << time << " "<< hover_thrust_ekf_.getHoverThrust() << std::endl;
 
     }
     outputFile.close();
