@@ -3,17 +3,14 @@
     <arg name = "takeoff_height" default = "1.1"/>
     <arg name = "in_real" default="true" />
     <!-- RATE,ATTI,POSY  -->
-    <arg name = "cmd_pub_type" default = "RATE"/>
+    <arg name = "cmd_pub_type" default = "ATTI"/>
+\    
     <!--   QUAD_T, RATE_T, PVA_Ys, -->
-    <arg name = "ctrl_mode" default = "RATE"/>
+    <arg name = "ctrl_mode" default = "POSY"/>
 
-    <include file="$(find mavros)/launch/px4.launch">
-        <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/>
-        <arg name="gcs_url" value="udp://:14550@192.168.8.10:14550"/>
-    </include>
 
-    <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen">
-        <!-- choose One -->
+
+    <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen" required="true">
         <remap from="~ctrl_cmd_sub" to="/airgym/cmd"/>
         <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
 
@@ -21,8 +18,10 @@
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
         <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
-
-        <!-- RATE or ATTI -->
-
-    </node>
+    </node> 
+    <!-- 不要使用GSC_URL -->
+    <!-- v1.13.3 版本对应的 gazebo 有问题，无法起飞 -->
+    <include file="$(find mavros)/launch/px4.launch" >
+        <arg name="fcu_url" value="udp://:14540@127.0.0.1:1857"/>
+    </include>
 </launch>

@@ -1,11 +1,23 @@
 #include "ctrl_bridge/mavros_utils.hpp"
 #include <std_msgs/Float64.h>
 
+// 创建一个映射关系
+std::map<std::string, CmdPubType> cmdPubMap = {
+    {"ATTI", CmdPubType::ATTI},
+    {"RATE", CmdPubType::RATE},
+    {"POSY", CmdPubType::POSY}
+};
+// 创建一个映射关系
+std::map<std::string, CtrlMode> ctrlModeMap = {
+    {"ATTI", CtrlMode::QUAD_T},
+    {"RATE", CtrlMode::RATE_T},
+    {"POSY", CtrlMode::PVA_Ys}
+};
 
 
-MavrosUtils::MavrosUtils(ros::NodeHandle &_nh,CTRL_OUTPUT_LVEVL _ctrl_output_level)
+MavrosUtils::MavrosUtils(ros::NodeHandle &_nh)
 {
-    ctrl_level = _ctrl_output_level;
+    nh = _nh;
     hover_thrust_ekf_ = new HoverThrustEkf(0.4f, 0.1f, 0.036f);
 
     // sub mavros states
@@ -16,7 +28,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh,CTRL_OUTPUT_LVEVL _ctrl_output_lev
     atti_target_sub_ = _nh.subscribe<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mavAttiTargetCallback, this);
 
     // Note: do NOT change it to /mavros/imu/data_raw !!!
-    ctrl_pub_ = _nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10); // give atti cmd
+    ctrl_atti_pub_ = _nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10); // give atti cmd
 
     arming_client_ = _nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     set_mode_client_ = _nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -25,12 +37,6 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh,CTRL_OUTPUT_LVEVL _ctrl_output_lev
     land_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/land", 1000, boost::bind(&MavrosUtils::mavLandCallback,this, _1, params_parse.name));
 
 
-    // direct command
-    // 检查 控制指令合法性 ，ctrl_output_level 为控制指令的级别
-    pva_yaw_sub= _nh.subscribe<mavros_msgs::PositionTarget>("pos_sp_cmd", 10,&MavrosUtils::mavPosCtrlSpCallback, this);
-    local_linear_vel_sub = _nh.subscribe<mavros_msgs::PositionTarget>("vel_sp_sub", 10, &MavrosUtils::mavLocalLinearVelCallback, this);
-    atti_sp_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("atti_sp_sub", 10, &MavrosUtils::mavAttiSpCallback, this);
-    rate_sp_sub = _nh.subscribe<mavros_msgs::AttitudeTarget>("rate_sp_sub", 10, &MavrosUtils::mavRateSpCallback, this);
 
 
     vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
@@ -52,28 +58,42 @@ void MavrosUtils::ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, E
 {
     lin_controller.update(des_pos, des_vel, des_acc, des_yaw, 0.01);
     ctrl_cmd_.thrust = lin_controller.thrust_exp;
-    if(ctrl_level == CTRL_OUTPUT_LVEVL::RATE)
+    if(ctrl_level == CmdPubType::RATE)
         ctrl_cmd_.rate = atti_controller_.update(odometry_.attitude,lin_controller.q_exp);
-    else if(ctrl_level == CTRL_OUTPUT_LVEVL::ATTI)
+    else if(ctrl_level == CmdPubType::ATTI)
         ctrl_cmd_.attitude = lin_controller.q_exp;
+    else if(ctrl_level == CmdPubType::POSY)
+    {
+        ctrl_cmd_.position(0) = des_pos(0);
+        ctrl_cmd_.position(1) = des_pos(1);
+        ctrl_cmd_.position(2) = des_pos(2);
+        ctrl_cmd_.velocity(0) = des_vel(0);
+        ctrl_cmd_.velocity(1) = des_vel(1);
+        ctrl_cmd_.velocity(2) = des_vel(2);
+        ctrl_cmd_.acceleration(0) = des_acc(0);
+        ctrl_cmd_.acceleration(1) = des_acc(1);
+        ctrl_cmd_.acceleration(2)= des_acc(2);
+        ctrl_cmd_.yaw = des_yaw;
+
+    }
 
 }
 void MavrosUtils::ctrlUpdate(Eigen::Vector3d des_vel,double yaw, double dt)
 {
     lin_controller.update(des_vel, 0.0, 0.01); // dt 暂时无用
     ctrl_cmd_.thrust = lin_controller.thrust_exp;
-    if(ctrl_level == CTRL_OUTPUT_LVEVL::RATE)
+    if(ctrl_level == CmdPubType::RATE)
         ctrl_cmd_.rate = atti_controller_.update(odometry_.attitude,lin_controller.q_exp);
-    else if(ctrl_level == CTRL_OUTPUT_LVEVL::ATTI)
+    else if(ctrl_level == CmdPubType::ATTI)
         ctrl_cmd_.attitude = lin_controller.q_exp;
 }
 void MavrosUtils::setMotorsIdling()
 {
-    if(ctrl_level == CTRL_OUTPUT_LVEVL::RATE)
+    if(ctrl_level == CmdPubType::RATE)
     {
         ctrl_cmd_.rate = Eigen::Vector3d::Zero();
     }
-    else if(ctrl_level == CTRL_OUTPUT_LVEVL::ATTI)
+    else if(ctrl_level == CmdPubType::ATTI)
     {
         ctrl_cmd_.attitude =  odometry_.attitude;
     }
@@ -81,15 +101,25 @@ void MavrosUtils::setMotorsIdling()
 }
 void MavrosUtils::setThrustZero()
 {
-    if(ctrl_level == CTRL_OUTPUT_LVEVL::RATE)
+    if(ctrl_level == CmdPubType::RATE)
     {
         ctrl_cmd_.rate = Eigen::Vector3d::Zero();
+        ctrl_cmd_.thrust = 0;
+
     }
-    else if(ctrl_level == CTRL_OUTPUT_LVEVL::ATTI)
+    else if(ctrl_level == CmdPubType::ATTI)
     {
         ctrl_cmd_.attitude =  odometry_.attitude;
+        ctrl_cmd_.thrust = 0;
     }
-    ctrl_cmd_.thrust = 0;
+    else if(ctrl_level == CmdPubType::POSY)
+    {
+        // TODO  这里应该用当前的位置
+        ctrl_cmd_.position = odometry_.position;
+        ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
+        ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
+        ctrl_cmd_.yaw = 0;
+    }
 }
 
 void MavrosUtils::sentCtrlCmd()
@@ -97,15 +127,18 @@ void MavrosUtils::sentCtrlCmd()
     mavros_msgs::AttitudeTarget msg;
     msg.header.stamp = ros::Time::now();
     msg.header.frame_id = std::string("FCU");
-    msg.thrust = ctrl_cmd_.thrust;    // body z axis
-    if(ctrl_level == CTRL_OUTPUT_LVEVL::RATE)
+    if(ctrl_level == CmdPubType::RATE)
     {
         msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
         msg.body_rate.x = ctrl_cmd_.rate(0);
         msg.body_rate.y = ctrl_cmd_.rate(1);
         msg.body_rate.z = ctrl_cmd_.rate(2);
+        msg.thrust = ctrl_cmd_.thrust;    // body z axis
+        ctrl_atti_pub_.publish(msg);
+
+
     }
-    else if(ctrl_level == CTRL_OUTPUT_LVEVL::ATTI)
+    else if(ctrl_level == CmdPubType::ATTI)
     {
         msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
                     mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE |
@@ -114,15 +147,19 @@ void MavrosUtils::sentCtrlCmd()
         msg.orientation.y = ctrl_cmd_.attitude.y();
         msg.orientation.z = ctrl_cmd_.attitude.z();
         msg.orientation.w = ctrl_cmd_.attitude.w();
+        msg.thrust = ctrl_cmd_.thrust;    // body z axis
+        ctrl_atti_pub_.publish(msg);
+
     }
 
-    ctrl_pub_.publish(msg);
+    // ROS_INFO("ctrl_cmd_.thrust: %f", ctrl_cmd_.thrust);
 
 
 }
 
 void MavrosUtils::waitConnected()
 {
+
     // wait for FCU connection
     ros::Rate rate(2);
     ROS_INFO("FCU connecting");
@@ -130,10 +167,11 @@ void MavrosUtils::waitConnected()
     {
         ros::spinOnce();
         rate.sleep();
-        std::cout << ">";
+        std::cout << ">"<< std::flush;
     }
     std::cout << std::endl;
     ROS_INFO("FCU connected");
+    
     // TODO:send a few setpoints before starting
     // 对于 /setpoint_raw/attitude 似乎不需要也可以
 }
@@ -191,14 +229,17 @@ void MavrosUtils::ctrl_loop()
     while (ros::ok())
     {
         fsm.process();
-        if (fsm.now_state == CtrlFSM::INITIAL)
+        if (fsm.now_state == CtrlFSM::IDLE)
         {
-            if (!context_.f_recv_takeoff_cmd)
+            if (fsm.last_state != CtrlFSM::IDLE)
             {
-                ros::spinOnce();
-                ros::Rate(10).sleep();
-                continue;
             }
+            // ros::spinOnce();
+            // continue; // 不发布任何东西
+            // just wait for takeoff cmd
+        }
+        else if (fsm.now_state == CtrlFSM::INITIAL)
+        {
             // Request offboard and Arm
             if (!isOffboardMode() &&
                 (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
@@ -218,36 +259,48 @@ void MavrosUtils::ctrl_loop()
             // set flag
             if (isOffboardMode())
             {
-                fsm.setOffboardFlag(true);
+                fsm.setFlag("offboard_done", true);
             }
             if (isOffboardMode() && isArmed())
             {
-                fsm.setArmFlag(true);
+                fsm.setFlag("arm_done", true);
             }
-            setMotorsIdling(); //设置怠速
+            setMotorsIdling(); //设置怠速，important
         }
         else if (fsm.now_state == CtrlFSM::TAKEOFF)
         {
             if (fsm.last_state != CtrlFSM::TAKEOFF)
             {
-                ROS_INFO("MODE: TAKEOFF");
                 // odometry_ comes from /mavros/local_position/odom
                 context_.last_state_position = odometry_.position;
                 context_.last_state_position(2) = params_parse.takeoff_height;
                 context_.last_state_attitude = odometry_.attitude;
             }
-            
-            Eigen::Vector3d des_takeoff_vel;
+            Eigen::Vector3d des_takeoff_pos;
+            des_takeoff_pos = context_.last_state_position;
+            des_takeoff_pos(2) = params_parse.takeoff_height;
             double takeoff_ctl_gain = 3;
-            des_takeoff_vel = -(odometry_.position - context_.last_state_position)*takeoff_ctl_gain; 
-            des_takeoff_vel.cwiseMin(-1).cwiseMax(1);
-            ctrlUpdate(des_takeoff_vel,0.0,0.01);    
-            ROS_INFO_STREAM("des_takeoff_vel: " << des_takeoff_vel.transpose());
+            Eigen::Vector3d des_takeoff_vel;
 
+            if(ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
+            {
+                takeoff_ctl_gain = 3;
+                des_takeoff_vel = (des_takeoff_pos-odometry_.position)*takeoff_ctl_gain; 
+                des_takeoff_vel.cwiseMin(-1).cwiseMax(1);
+                ctrlUpdate(des_takeoff_vel,0.0,0.01);  
+                ROS_INFO_STREAM("des_takeoff_vel: " << des_takeoff_vel.transpose());
+            }
+            else if(ctrl_level == CmdPubType::POSY)
+            {
+                takeoff_ctl_gain = 3;
+                des_takeoff_vel = (des_takeoff_pos-odometry_.position)*takeoff_ctl_gain; 
+                des_takeoff_vel.cwiseMin(-1).cwiseMax(1);
+                ctrlUpdate(des_takeoff_pos, des_takeoff_vel, Eigen::Vector3d::Zero(), 0.0);
+            }
             // set auto_takeoff_height
             if (abs(odometry_.position(2) - params_parse.takeoff_height) < 0.1)
             {
-                fsm.setTakeoffOverFlag(true);
+                fsm.setFlag("takeoff_done",true);
                 ROS_INFO("Take off done");
             }
         }
@@ -255,65 +308,81 @@ void MavrosUtils::ctrl_loop()
         {
             if (fsm.last_state != CtrlFSM::HOVER)
             {
-                ROS_INFO("MODE: HOVER");
                 context_.last_state_position = odometry_.position;
                 context_.last_state_attitude = odometry_.attitude;
-                }
-            Eigen::Vector3d hover_vel;
-            hover_vel = -(odometry_.position - context_.last_state_position)*3;
-            hover_vel.cwiseMin(-1).cwiseMax(1);
-            ctrlUpdate(hover_vel,0.0,0.01);        
+            }
+            double hover_vel_ctrl_gain;
+            if(ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
+            {
+                hover_vel_ctrl_gain = 3;
+                Eigen::Vector3d hover_vel;
+                hover_vel = (context_.last_state_position-odometry_.position)*hover_vel_ctrl_gain;
+                hover_vel.cwiseMin(-1).cwiseMax(1);
+                // 这里需要设置为上一次的yaw 值
+                ctrlUpdate(hover_vel,0.0,0.01);        
+            }
+            else if(ctrl_level == CmdPubType::POSY)
+            {
+                hover_vel_ctrl_gain = 3;
+                Eigen::Vector3d hover_pos;
+                hover_pos = context_.last_state_position;
+                Eigen::Vector3d hover_vel;
+                hover_vel = -(odometry_.position - context_.last_state_position)*3;
+                hover_vel.cwiseMin(-1).cwiseMax(1);
+                ctrlUpdate(hover_pos, hover_vel, Eigen::Vector3d::Zero(), 0.0);
+            }
+
         }
         else if (fsm.now_state == CtrlFSM::RUNNING)
         {
-            if (fsm.last_state != CtrlFSM::RUNNING)
-            {
-                ROS_INFO_STREAM("MODE: RUNNING");
-            }
+            // exec user commnad
         }
 
         else if (fsm.now_state == CtrlFSM::LANDING)
         {
             if (fsm.last_state != CtrlFSM::LANDING)
             {
-                ROS_INFO("MODE: LAND");
                 context_.last_state_attitude = odometry_.attitude;
                 context_.last_state_position = odometry_.position;
                 context_.landing_touchdown_start_time = ros::Time::now();
             }
-            Eigen::Vector3d land_vel;
-            land_vel = -(odometry_.position - context_.last_state_position)*3;
-            land_vel(2) = -0.3;
-            land_vel.cwiseMin(-1).cwiseMax(1);
-            ctrlUpdate(land_vel,0.0,0.01);
 
-            if(get_hover_thrust() > 0.11)
+            if(ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
-                context_.landing_touchdown_start_time = ros::Time::now();
+                Eigen::Vector3d land_vel;
+                land_vel = (context_.last_state_position-odometry_.position)*3;
+                land_vel(2) = -0.3;
+                land_vel.cwiseMin(-1).cwiseMax(1);
+                ctrlUpdate(land_vel,0.0,0.01);
+                if(get_hover_thrust() > 0.11)
+                {
+                    ROS_INFO("Land thrust: %f", get_hover_thrust());
+                    context_.landing_touchdown_start_time = ros::Time::now();
+                }
+                if(ros::Time::now() - context_.landing_touchdown_start_time > ros::Duration(2))
+                {
+                    ROS_INFO("Land done");
+                    setThrustZero();
+                    requestDisarm();
+                    fsm.setFlag("land_done",true);
+                }
+    
             }
-            if(ros::Time::now() - context_.landing_touchdown_start_time > ros::Duration(2))
+            else if(ctrl_level == CmdPubType::POSY)
             {
-                ROS_INFO("Land done");
-                setThrustZero();
-                requestDisarm();
+            if (context_.mode != "AUTO.LAND" &&
+                (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
+            {
+                if (!request_land())
+                    ROS_WARN("Try land cmd failed, pls try again in 5 seconds");
+                fsm.last_try_offboard_time = ros::Time::now();
+            }
             }
 
-            // if (current_state.mode != "AUTO.LAND" &&
-            //     (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
-            // {
-            //     if (!request_land())
-            //         ROS_WARN("Try land cmd failed, pls try again in 5 seconds");
-            //     fsm.last_try_offboard_time = ros::Time::now();
-            // }
-        }
 
-        // set flag
-        if (context_.f_recv_land_cmd)
-        {
-            fsm.setLandFlag(true);
+
         }
         sentCtrlCmd();
-
         ros::spinOnce();
         rate.sleep();
     }
@@ -325,18 +394,19 @@ void MavrosUtils::mavPosCtrlSpCallback(const mavros_msgs::PositionTarget::ConstP
     fsm.updateCtrlCmdTimestamp(ros::Time::now());
     if (fsm.now_state == CtrlFSM::RUNNING)
     {
-        local_raw_pub.publish(msg);
+        
+        local_pvay_pub.publish(msg);
     }
 }
-void MavrosUtils::mavLocalLinearVelCallback(const mavros_msgs::PositionTarget::ConstPtr &msg)
-{
-    fsm.updateCtrlCmdTimestamp(ros::Time::now());
-    if (fsm.now_state == CtrlFSM::RUNNING)
-    {
-        Eigen::Vector3d vel = Eigen::Vector3d(msg->velocity.x, msg->velocity.y, msg->velocity.z);
-        ctrlUpdate(vel,0.0,0.01);    
-    }
-}
+// void MavrosUtils::mavLocalLinearVelCallback(const mavros_msgs::PositionTarget::ConstPtr &msg)
+// {
+//     fsm.updateCtrlCmdTimestamp(ros::Time::now());
+//     if (fsm.now_state == CtrlFSM::RUNNING)
+//     {
+//         Eigen::Vector3d vel = Eigen::Vector3d(msg->velocity.x, msg->velocity.y, msg->velocity.z);
+//         ctrlUpdate(vel,0.0,0.01);    
+//     }
+// }
 
 void MavrosUtils::mavRateSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
 {
@@ -385,9 +455,9 @@ void MavrosUtils::mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr
 void MavrosUtils::mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name)
 {
     std::string received_string = msg->data;
-
     if (received_string.find(name) != std::string::npos) {
-        context_.f_recv_takeoff_cmd = true;
+        ROS_INFO("Received takeoff command");
+        fsm.setFlag("recv_takeoff_cmd",true);
     }
 }
 
@@ -395,7 +465,8 @@ void MavrosUtils::mavLandCallback(const std_msgs::String::ConstPtr& msg, std::st
 {
     std::string received_string = msg->data;
     if (received_string.find(name) != std::string::npos) {
-        context_.f_recv_land_cmd = true;
+        ROS_INFO("Received land command");
+        fsm.setFlag("recv_land_cmd",true);
     }
 }
 void MavrosUtils::mavStateCallback(const mavros_msgs::State::ConstPtr &msg)
@@ -480,4 +551,70 @@ void MavrosUtils::mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::Const
 
 
     
+}
+
+int MavrosUtils::set_bridge_mode(std::string ctrl_mode_str, std::string ctrl_level_str)
+{
+    CmdPubType ctrl_level_enum = cmdPubMap[ctrl_level_str];
+    CtrlMode ctrl_mode_enum = ctrlModeMap[ctrl_mode_str];
+    if(ctrl_level_enum == CmdPubType::Unknown || ctrl_mode_enum == CtrlMode::Unknown)
+    {
+        // 不一定管用
+        ROS_ERROR("Invalid input");
+        return -1;
+    }
+
+    if(ctrl_level_enum == CmdPubType::ATTI)
+    {
+        if(ctrl_mode_enum == CtrlMode::QUAD_T)
+        {
+        }
+        else if (ctrl_mode_enum == CtrlMode::RATE_T)
+        {
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"ctrl_level\"");
+            return -1;
+        }
+    }
+    else if(ctrl_level_enum == CmdPubType::RATE)
+    {
+        if (ctrl_mode_enum == CtrlMode::RATE_T || ctrl_mode_enum == CtrlMode::QUAD_T || ctrl_mode_enum == CtrlMode::PVA_Ys)
+        {
+        }
+        else{
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"ctrl_level\"");
+            return -1;
+        }
+    }
+    else if(ctrl_level_enum == CmdPubType::POSY)
+    {
+        if (ctrl_mode_enum == CtrlMode::RATE_T || ctrl_mode_enum == CtrlMode::QUAD_T)
+        {
+            ROS_ERROR("Invalid correspondence between \"ctrl_mode\" and \"ctrl_level\"");
+            return -1;
+        }
+    }
+    ROS_INFO("ctrl_mode: %s, ctrl_level: %s", ctrl_mode_str.c_str(), ctrl_level_str.c_str());
+    ctrl_level = ctrl_level_enum;
+
+
+    // direct command
+    // 检查 控制指令合法性 ，ctrl_output_level 为控制指令的级别
+    if(ctrl_mode_enum == CtrlMode::QUAD_T)
+    {
+        user_cmd_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("atti_sp_cmd", 10, &MavrosUtils::mavAttiSpCallback, this);
+
+    }
+    else if(ctrl_mode_enum == CtrlMode::RATE_T)
+    {
+        user_cmd_sub = nh.subscribe<mavros_msgs::AttitudeTarget>("rate_sp_sub", 10, &MavrosUtils::mavRateSpCallback, this);
+
+    }
+    else if(ctrl_mode_enum == CtrlMode::PVA_Ys)
+    {
+        user_cmd_sub = nh.subscribe<mavros_msgs::PositionTarget>("pos_sp_cmd", 10,&MavrosUtils::mavPosCtrlSpCallback, this);
+
+    }
+    // user_cmd_sub 
+
+    return 0;
 }

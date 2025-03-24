@@ -13,12 +13,12 @@ land drone
 
 ## Real Env
 ```bash
-roslaunch control_for_gym ctrl_bridge.launch
+roslaunch ctrl_bridge ctrl_bridge.launch
 ```
 ## Gazebo Env
 Connect with gazebo_sitl
 ```bash
-roslaunch control_for_gym sitl_ctrl_bridge.launch
+roslaunch ctrl_bridge ctrl_bridge_gazebo.launch
 ```
 
 ## Ctrl Mode

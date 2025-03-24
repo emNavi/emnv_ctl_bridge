@@ -2,6 +2,8 @@
 #define _FSM_HPP_
 #include <ros/ros.h>
 #include <ros/time.h>
+#include <unordered_map>
+#include <string>
 class CtrlFSM
 {
 public:
@@ -14,21 +16,61 @@ public:
         RUNNING,
         LANDING
     };
+    std::unordered_map<State_t, std::string> stateStringMap = {
+        {IDLE, "IDLE"},
+        {INITIAL, "INITIAL"},
+        {TAKEOFF, "TAKEOFF"},
+        {HOVER, "HOVER"},
+        {RUNNING, "RUNNING"},
+        {LANDING, "LANDING"}
+    };
+
     State_t now_state = IDLE;
     State_t last_state = IDLE;
     ros::Time last_try_offboard_time;
     ros::Time last_try_arm_time;
     ros::Time last_try_land_time;
+
+    std::unordered_map<std::string, std::pair<bool, bool>> flags{
+        // default , current
+        {"offboard_done", {false, false}},  
+        {"cmd_vaild", {false, false}},      
+        {"arm_done", {false, false}},
+        {"land_done", {false, false}},   
+        {"recv_land_cmd", {false, false}},    
+        {"recv_takeoff_cmd", {false, false}},        
+        {"takeoff_done", {false, false}}
+    };
+
+
+    bool getFlag(const std::string& name) const {
+        auto it = flags.find(name);
+        if (it != flags.end()) {
+            return it->second.second;
+        }
+        std::cerr << "Warning: Flag '" << name << "' not found!\n";
+        return false;
+    }
+    // 设置 flag 当前值
+    void setFlag(const std::string& name, bool value) {
+        if (flags.find(name) != flags.end()) {
+            flags[name].second = value;
+        } else {
+            std::cerr << "Error: Trying to set an undefined flag '" << name << "'!\n";
+        }
+    }
+    // 重置所有 flag 为默认值
+    void resetFlags() {
+        for (auto& flag : flags) {
+            flag.second.second = flag.second.first; // 恢复到默认值
+        }
+    }
+
     void Init_FSM()
     {
         now_state = IDLE;
         last_state = IDLE;
-        offboard_flag = false;
-        takeoff_over_flag = false;
-        land_flag = false;
-        cmd_vaild_flag = false;
-        arm_done_flag = false;
-
+        resetFlags();
 #define TIME_OFFSET_SEC 1000
         last_recv_pva_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
         last_try_offboard_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
@@ -39,20 +81,21 @@ public:
 
     inline void process()
     {
+        // 状态切换只能是状态切换
         last_state = now_state;
         switch (now_state)
         {
         case IDLE:
         {
-            // if (get_offboard_flag())
-            // {
-            //     now_state = INIT_PARAM;
-            // }
+            if(getFlag("recv_takeoff_cmd"))
+            {
+                now_state = INITIAL;
+            }
             break;
         }
         case INITIAL:
         {
-            if (getArmFlag() && getOffboardFlag())
+            if(getFlag("arm_done") && getFlag("offboard_done"))
             {
                 now_state = TAKEOFF;
             }
@@ -60,7 +103,7 @@ public:
         }
         case TAKEOFF:
         {
-            if (getTakeoffOverFlag())
+            if (getFlag("takeoff_done"))
             {
                 now_state = HOVER;
             }
@@ -68,27 +111,27 @@ public:
         }
         case HOVER:
         {
-            if (isCmdVaild())
+
+            if (getFlag("cmd_vaild"))
             {
                 now_state = RUNNING;
             }
 
-            if (getLandFlag())
+            if (getFlag("recv_land_cmd"))
             {
                 now_state = LANDING;
             }
 
             break;
         }
-
         case RUNNING:
         {
-            if (!isCmdVaild())
+            if (!getFlag("cmd_vaild"))
             {
                 now_state = HOVER;
             }
 
-            if (getLandFlag())
+            if (getFlag("recv_land_cmd"))
             {
                 now_state = LANDING;
             }
@@ -96,51 +139,35 @@ public:
         }
         case LANDING:
         {
-
+            if(getFlag("land_done"))
+            {
+                now_state = IDLE;
+            }
         }
-
         default:
             break;
         }
+        if (last_state != IDLE && now_state == IDLE)
+        {
+            resetFlags();
+        }
+        modeCheckLog();
     }
-    // ********************************
-    bool getOffboardFlag()
+    std::string stateToString(State_t state) {
+        auto it = stateStringMap.find(state);
+        if (it != stateStringMap.end()) {
+            return it->second;
+        } else {
+            return "UNKNOWN"; // 处理未知 enum 值
+        }
+    }
+    void modeCheckLog()
     {
-        return offboard_flag;
+        if (now_state != last_state)
+        {
+            ROS_INFO("FSM: %s -> %s", stateToString(last_state).c_str(),stateToString(now_state).c_str());
+        }
     }
-    void setOffboardFlag(bool flag)
-    {
-        offboard_flag = flag;
-    }
-
-    bool getTakeoffOverFlag()
-    {
-        return takeoff_over_flag;
-    }
-    void setTakeoffOverFlag(bool flag)
-    {
-        takeoff_over_flag = flag;
-    }
-
-    bool getArmFlag()
-    {
-        return arm_done_flag;
-    }
-    void setArmFlag(bool flag)
-    {
-        arm_done_flag = flag;
-    }
-
-    bool getLandFlag()
-    {
-        return land_flag;
-    }
-
-    void setLandFlag(bool flag)
-    {
-        land_flag = flag;
-    }
-    // ********************************
 
     void updateCtrlCmdTimestamp(ros::Time now_time)
     {
@@ -164,11 +191,6 @@ public:
     }
 
 private:
-    bool offboard_flag;
-    bool takeoff_over_flag;
-    bool cmd_vaild_flag;
-    bool arm_done_flag;
-    bool land_flag;
     ros::Time last_recv_pva_time;
 
     // add takeoff cmd recv flag;

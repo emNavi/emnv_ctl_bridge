@@ -20,6 +20,25 @@
 #include "ctrl_bridge/params_parse.hpp"
 #include "ctrl_bridge/FSM.hpp"
 
+
+enum class CtrlMode {
+    QUAD_T,
+    RATE_T,
+    PVA_Ys,
+    Unknown // 处理无效输入
+};
+
+
+enum class CmdPubType {
+    ATTI,
+    RATE,
+    POSY,
+    Unknown // 处理无效输入
+};
+extern std::map<std::string, CmdPubType> cmdPubMap;
+extern std::map<std::string, CtrlMode> ctrlModeMap;
+
+
 extern ParamsParse params_parse;
 class MavContext
 {
@@ -40,8 +59,6 @@ public:
     bool connected = false;
     bool armed = false;
     std::string mode="";
-    bool f_recv_takeoff_cmd = false;
-    bool f_recv_land_cmd = false;
 
     // landing context
     ros::Time landing_touchdown_start_time;
@@ -50,19 +67,19 @@ public:
     Eigen::Vector3d last_state_position;
     // Eigen::Vector3d last_state_velocity;
     Eigen::Quaterniond last_state_attitude;
+
+
 };
 
 class MavrosUtils
 {
 public:
-    enum CTRL_OUTPUT_LVEVL {
-        POSI = 0,
-        RATE = 1,
-        ATTI = 2
-    };
+    // ==================  Params  ==================
+    CmdPubType ctrl_level;
+
+    // 所有可能用到的控制变量
     struct CtrlCommand
     {
-        CTRL_OUTPUT_LVEVL ctrl_level;
         // position control
         Eigen::Vector3d position;
         Eigen::Vector3d velocity;
@@ -91,11 +108,13 @@ public:
 
 
 private:
+    ros::NodeHandle nh;
     // ==================  Node  ==================
     // Subscribe Mavros Msg
     ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_;
     // Subscribe Ctrl Command
-    ros::Subscriber pva_yaw_sub,local_linear_vel_sub,atti_sp_sub,rate_sp_sub;
+    ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
+    // ros::Subscriber local_linear_vel_sub;
     // Subscribe external information 
     ros::Subscriber vision_pose_sub,vrpn_pose_sub;
     // Subscribe takeoff and land command
@@ -104,7 +123,7 @@ private:
     // Publish Mavros State Msg
     ros::Publisher vision_pose_pub;
     // Publish Mavros Ctrl Msg
-    ros::Publisher local_raw_pub,ctrl_pub_;
+    ros::Publisher local_pvay_pub,ctrl_atti_pub_;
     // Publish MavUtils State
     ros::Publisher hover_thrust_pub_;
 
@@ -114,10 +133,9 @@ private:
     HoverThrustEkf *hover_thrust_ekf_;
     double _hover_thrust=0.3;
     Px4AttitudeController atti_controller_;
-    CTRL_OUTPUT_LVEVL ctrl_level = POSI;
 
 public:
-    MavrosUtils(ros::NodeHandle &_nh, CTRL_OUTPUT_LVEVL _ctrl_output_level);
+    MavrosUtils(ros::NodeHandle &_nh);
     ~MavrosUtils();
 
     MavContext context_;
@@ -145,8 +163,25 @@ public:
 
 
     void waitConnected();
+    /**
+     * @brief 向Mosvos请求解锁
+     * 
+     * @return true 
+     * @return false 
+     */
     bool requestArm();
+    /**
+     * @brief 向Mosvos请求切换到OFFBOARD模式。
+     * @return 成功(true)
+     * @return 失败(false)
+     */
     bool requestOffboard();
+    /**
+     * @brief 向Mosvos请求电机上锁。
+     * @return 成功(true)或失败(false)
+     * @return 成功(true)
+     * @return 失败(false)
+     */   
     bool requestDisarm();
 
     void sentCtrlCmd();
@@ -182,6 +217,9 @@ public:
     void ctrlUpdate(Eigen::Vector3d des_vel,double des_yaw, double dt);
 
     void ctrl_loop();
+
+    int set_bridge_mode(std::string ctrl_mode_str, std::string cmd_pub_type_str);
+
 
 };
 

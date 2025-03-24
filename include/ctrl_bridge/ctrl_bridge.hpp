@@ -17,7 +17,7 @@ class ctrl_bridge
 {
 private:
     CtrlFSM fsm;
-    ros::Publisher local_raw_pub, local_linear_vel_pub;
+    ros::Publisher local_pvay_pub, local_linear_vel_pub;
     ros::Publisher vision_pose_pub;
     action_flag action_f;
 
@@ -31,7 +31,7 @@ public:
         fsm.update_cmd_update_time(ros::Time::now());
         if (fsm.now_state == CtrlFSM::RUNNING)
         {
-            local_raw_pub.publish(msg);
+            local_pvay_pub.publish(msg);
         }
     }
     void local_linear_vel_cb(const geometry_msgs::Twist::ConstPtr &msg)
