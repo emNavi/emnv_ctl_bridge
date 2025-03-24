@@ -370,13 +370,14 @@ void MavrosUtils::ctrl_loop()
             }
             else if(ctrl_level == CmdPubType::POSY)
             {
-            if (context_.mode != "AUTO.LAND" &&
-                (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
-            {
-                if (!request_land())
-                    ROS_WARN("Try land cmd failed, pls try again in 5 seconds");
-                fsm.last_try_offboard_time = ros::Time::now();
-            }
+                // 没移植过来
+            // if (context_.mode != "AUTO.LAND" &&
+            //     (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
+            // {
+            //     if (!request_land())
+            //         ROS_WARN("Try land cmd failed, pls try again in 5 seconds");
+            //     fsm.last_try_offboard_time = ros::Time::now();
+            // }
             }
 
 

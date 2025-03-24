@@ -10,5 +10,5 @@ gazebo(udp port [11455,,]) -> mavros (fcu_url:udp) -> ctrl_bridge  -> User Algor
 
 
 ```bash
-make px4_sitl gazebo-classic
+make px4_sitl gazebo
 ```
