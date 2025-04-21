@@ -9,7 +9,7 @@ struct action_flag
 {
     bool recv_land_cmd = true;
     bool recv_takeoff_cmd = true;
-
+    bool recv_cmd_vaild = true;
 };
 
 
@@ -82,7 +82,21 @@ void land_cmd_cb(const std_msgs::Int32MultiArray::ConstPtr &msg, int drone_id)
         }
     }
 }
+
+bool cmd_vaild_flag = false;
+void cmd_vaild_cb(const std_msgs::Int32MultiArray::ConstPtr &msg, int drone_id)
+{
+    for (int i = 0; i < msg->data.size() + 1e-2; i++)
+    {
+        if (msg->data[i] == drone_id)
+        {
+            action_f.recv_cmd_vaild = true;
+        }
+    }
+}
 };
+
+
 
 ctrl_bridge::ctrl_bridge(ros::NodeHandle &_nh)
 {

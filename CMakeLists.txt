@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   sensor_msgs
+  quadrotor_msgs
   # map_operation_pkg
   # path_searching_pkg
   # poly_curves_pkg

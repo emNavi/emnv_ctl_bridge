@@ -1,0 +1,49 @@
+<launch>
+    <arg name = "drone_id" default = "1"/>
+    <arg name = "takeoff_height" default = "1.1"/>
+    <arg name = "in_real" default="true" />
+    <!-- RATE,ATTI,POSY  -->
+
+    <arg name = "loop_rate" default = "100"/>
+    <arg name = "cmd_pub_type" default = "POSY"/>
+    <arg name = "ctrl_mode" default = "POSY"/>
+    <arg name = "ctrl_out_level" default = "POSY"/>
+
+    <arg name = "uav_type" value = "iris"/>
+    <arg name = "runnig_false" value = "0"/>
+    <arg name = "FSM_RESET_flage" value = "0"/>
+    <param name ="runnig_false" value="$(arg runnig_false)"/>
+    <param name ="FSM_RESET_flage" value="$(arg FSM_RESET_flage)"/>
+    
+    <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+        <!-- choose One -->
+        <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
+        <!-- <remap from="~rate_sp_sub" to="/airgym/cmd"/> -->
+        <!-- <remap from="~atti_sp_sub" to="/airgym/cmd"/> -->
+        <!-- <remap from="~pos_sp_cmd" to="$(arg uav_type)_0/mavros/super_attitude" />  -->
+        <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
+        <param name ="loop_rate" value="$(arg loop_rate)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+        <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
+        <param name ="ctrl_out_level" value="$(arg ctrl_out_level)"/>
+        <!-- <remap from="~vrpn_pose" to="$(arg uav_type)_0/mavros/vision_pose/pose"/> -->
+        <param name ="drone_id" value="$(arg drone_id)"/>
+        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <!-- RATE or ATTI -->
+        <remap from="mavros/state" to="$(arg uav_type)_0/mavros/state"/>
+        <remap from="mavros/local_position/odom"  to="$(arg uav_type)_0/mavros/local_position/odom"/>
+        <remap from="mavros/imu/data" to="$(arg uav_type)_0/imu_gazebo"/>
+        <remap from="mavros/setpoint_raw/attitude" to="$(arg uav_type)_0/mavros/setpoint_raw/attitude"/>
+        <remap from="mavros/cmd/arming" to="$(arg uav_type)_0/mavros/cmd/arming"/>
+        <remap from="mavros/set_mode" to="$(arg uav_type)_0/mavros/set_mode"/>
+
+        <remap from="/mavros/super_attitude" to="$(arg uav_type)_0/mavros/super_attitude"/>
+        <remap from="/mavros/setpoint_raw/local" to="$(arg uav_type)_0/mavros/setpoint_raw/local"/>
+    </node> 
+
+    <!-- 
+        rostopic pub /emnavi_cmd/takeoff std_msgs/String "data:"drone1"" 
+        rostopic pub /emnavi_cmd/cmd_vaild std_msgs/String "data:"drone1""
+    -->
+     
+</launch>

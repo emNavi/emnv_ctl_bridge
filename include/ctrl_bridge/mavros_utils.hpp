@@ -19,7 +19,7 @@
 #include "ctrl_bridge/Px4AttitudeController.hpp"
 #include "ctrl_bridge/params_parse.hpp"
 #include "ctrl_bridge/FSM.hpp"
-
+#include "quadrotor_msgs/PositionCommand.h"
 
 enum class CtrlMode {
     QUAD_T,
@@ -111,19 +111,19 @@ private:
     ros::NodeHandle nh;
     // ==================  Node  ==================
     // Subscribe Mavros Msg
-    ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub;
+    ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub,super_target_sub;
     // Subscribe Ctrl Command
     ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
     // ros::Subscriber local_linear_vel_sub;
     // Subscribe external information 
     ros::Subscriber vision_pose_sub,vrpn_pose_sub;
     // Subscribe takeoff and land command
-    ros::Subscriber takeoff_sub,land_sub;
+    ros::Subscriber takeoff_sub,land_sub,cmd_vaild_sub;
 
     // Publish Mavros State Msg
     ros::Publisher vision_pose_pub;
     // Publish Mavros Ctrl Msg
-    ros::Publisher local_pvay_pub,ctrl_atti_pub_;
+    ros::Publisher local_pvay_pub,ctrl_atti_pub_,ctrl_posy_pub_;
     // Publish MavUtils State
     ros::Publisher hover_thrust_pub_;
 
@@ -149,9 +149,10 @@ public:
     void mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
-
+    void mavSupergetCallback(const quadrotor_msgs::PositionCommand::ConstPtr &msg);
     void mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name);
     void mavLandCallback(const std_msgs::String::ConstPtr& msg, std::string name);
+    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr& msg, std::string name);
 
     void mavVisionPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
