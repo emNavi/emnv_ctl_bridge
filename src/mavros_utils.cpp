@@ -225,7 +225,7 @@ void MavrosUtils::sentCtrlCmd()
         else if(type_mask_flage == 5)   //屏蔽P,A     用V
             msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ 
                 | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
-                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+                | mavros_msgs::PositionTarget::IGNOREtakeoff_YAW_RATE;
         else if(type_mask_flage == 6)   //屏蔽P,A     用V
             msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ 
                 | mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ 
@@ -325,7 +325,7 @@ void MavrosUtils::ctrl_loop()
     while (ros::ok())
     {
         /*简单重置状态机*/
-        ros::param::get("FSM_RESET_flage",FSM_RESET_flage);
+        ros::param::get("FSM_RESET_flage",FSM_RESET_ftakeofflage);
         if(FSM_RESET_flage == 1)
         {   
             FSM_RESET_flage = 0;
@@ -685,7 +685,6 @@ void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
         hover_thrust_ekf_->predict(dt); // dt
         hover_thrust_ekf_->fuseAccZ(odometry_.acc(2)-CONSTANTS_ONE_G, ctrl_cmd_.thrust);
         _hover_thrust = hover_thrust_ekf_->getHoverThrust();
-        hover_thrust_ekf_->fuseAccZ(odometry_.acc(2)-CONSTANTS_ONE_G, ctrl_cmd_.thrust);
         lin_controller.set_hover_thrust(_hover_thrust);
 
     }

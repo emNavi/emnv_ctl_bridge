@@ -6,7 +6,6 @@
 
     <arg name = "loop_rate" default = "57"/><!--未知bug rate = rate*1.76 ,故需要 rate/1.76 -->
     <arg name = "cmd_pub_type" default = "POSY"/>
-    <arg name = "ctrl_mode" default = "POSY"/>
     <arg name = "ctrl_out_level" default = "POSY"/>
 
     <arg name = "uav_type" value = "iris"/>
