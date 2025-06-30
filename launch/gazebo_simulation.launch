@@ -1,20 +1,28 @@
 <launch>
     <arg name = "drone_id" default = "1"/>
-    <arg name = "takeoff_height" default = "1.1"/>
+    <arg name = "takeoff_height" default = "1.2"/>
     <arg name = "in_real" default="true" />
     <!-- RATE,ATTI,POSY  -->
 
-    <arg name = "loop_rate" default = "100"/>
+    <arg name = "loop_rate" default = "57"/><!--未知bug rate = rate*1.76 ,故需要 rate/1.76 -->
     <arg name = "cmd_pub_type" default = "POSY"/>
     <arg name = "ctrl_mode" default = "POSY"/>
     <arg name = "ctrl_out_level" default = "POSY"/>
 
     <arg name = "uav_type" value = "iris"/>
-    <arg name = "runnig_false" value = "0"/>
+    <arg name = "runnig_false" value = "1"/>
     <arg name = "FSM_RESET_flage" value = "0"/>
+    <arg name = "type_mask_flage" value = "3"/>
+
     <param name ="runnig_false" value="$(arg runnig_false)"/>
     <param name ="FSM_RESET_flage" value="$(arg FSM_RESET_flage)"/>
+    <param name ="type_mask_flage" value="$(arg type_mask_flage)"/>
     
+    <param name ="Test_pz" value="0.0"/>
+    <param name ="Test_pz" value="0.0"/>
+    <param name ="Test_pz" value="1.2"/>
+    <param name ="Test_yaw" value="0.1"/>
+
     <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen" required="true">
         <!-- choose One -->
         <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
@@ -41,9 +49,20 @@
         <remap from="/mavros/setpoint_raw/local" to="$(arg uav_type)_0/mavros/setpoint_raw/local"/>
     </node> 
 
+    <!-- <node pkg="timed_roslaunch" type="timed_roslaunch.sh"
+		args="3 px4 indoor1.launch "
+		name="timed_px4_roslaunch" output="log" /> -->
+
+    <!-- <node pkg="timed_roslaunch" type="timed_roslaunch.sh"
+		args="5 fast_lio mapping_mid360.launch "
+		name="timed_fastlio_roslaunch" output="log" /> -->
+
+    <!-- <include file="$(find px4)/launch/indoor1.launch" /> -->
+     
     <!-- 
         rostopic pub /emnavi_cmd/takeoff std_msgs/String "data:"drone1"" 
         rostopic pub /emnavi_cmd/cmd_vaild std_msgs/String "data:"drone1""
+        rosparam load '/home/emnavi/catkin_ws/src/emnavi-ctl-bridge/launch/Test_posy.yaml'
     -->
      
 </launch>
