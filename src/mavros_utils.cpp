@@ -159,7 +159,7 @@ void MavrosUtils::mavSupergetCallback(const quadrotor_msgs::PositionCommand::Con
         super_yaw = msg->yaw;
     }
 }
-
+int type_mask_flage=0;
 void MavrosUtils::sentCtrlCmd()
 {
     mavros_msgs::AttitudeTarget msg;
@@ -181,7 +181,6 @@ void MavrosUtils::sentCtrlCmd()
         msg.thrust = ctrl_cmd_.thrust;    // body z axis
         ctrl_atti_pub_.publish(msg);
 
-
     }
     else if(ctrl_level == CmdPubType::ATTI)
     {
@@ -195,19 +194,43 @@ void MavrosUtils::sentCtrlCmd()
         msg.thrust = ctrl_cmd_.thrust;    // body z axis
         ctrl_atti_pub_.publish(msg);
 
-    }
-    
-    // else if((ctrl_level == CmdPubType::POSY) && (ctrl_level == CmdPubType::POSY))  
+    } 
     else if(ctrl_level == CmdPubType::POSY)  
     {
         // msg_pos.type_mask = mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ
         //                     | mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ 
-        //                     | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFX 
+        //                     | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
         //                     | mavros_msgs::PositionTarget::IGNORE_YAW | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-        /*重置初始位置 +  悬停*/
-        // fsm.setFlag("takeoff_done",true);
-        // ROS_INFO("Take off done");
-        msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+        /*重置初始位置 +  悬停*/    // fsm.setFlag("takeoff_done",true);    // ROS_INFO("Take off done");
+        ros::param::get("type_mask_flage",type_mask_flage);
+        if(type_mask_flage == 0) //屏蔽yaw-dot
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+        else if(type_mask_flage == 1)   //屏蔽P  用V,A
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ
+                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+
+        else if(type_mask_flage == 2)   //屏蔽V 用P,A
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ  
+                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+
+        else if(type_mask_flage == 3)   //屏蔽A     用P,V
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
+                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+
+        else if(type_mask_flage == 4)   //屏蔽V,A     用P
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ 
+                | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
+                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE; 
+
+        else if(type_mask_flage == 5)   //屏蔽P,A     用V
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ 
+                | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
+                | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+        else if(type_mask_flage == 6)   //屏蔽P,A     用V
+            msg_pos.type_mask =  mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ 
+                | mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ 
+                | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ 
+                | mavros_msgs::PositionTarget::IGNORE_YAW | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;       
         msg_pos.position.x = ctrl_cmd_.position(0);
         msg_pos.position.y = ctrl_cmd_.position(1);
         msg_pos.position.z = ctrl_cmd_.position(2);
@@ -294,13 +317,15 @@ bool MavrosUtils::requestDisarm()
 
 int runnig_false=0,time_flage=0;
 int FSM_RESET_flage = 0;
+float Test_px = 0,Test_py = 0,Test_pz = 1.2 ,Test_yaw = 0;
 void MavrosUtils::ctrl_loop()
 {
-    ros::Rate rate(params_parse.loop_rate);
+    // ros::Rate rate( (double)params_parse.loop_rate );
+    ros::Rate rate( (double)params_parse.loop_rate );
     while (ros::ok())
     {
         /*简单重置状态机*/
-        ros::param::get ("FSM_RESET_flage",FSM_RESET_flage);
+        ros::param::get("FSM_RESET_flage",FSM_RESET_flage);
         if(FSM_RESET_flage == 1)
         {   
             FSM_RESET_flage = 0;
@@ -373,7 +398,9 @@ void MavrosUtils::ctrl_loop()
             else if(ctrl_level == CmdPubType::POSY)
             {
                 takeoff_ctl_gain = 3;
-                des_takeoff_vel = (des_takeoff_pos-odometry_.position)*takeoff_ctl_gain; 
+                des_takeoff_vel(0) = 0;
+                des_takeoff_vel(1) = 0;
+                des_takeoff_vel(2) = (des_takeoff_pos(2)-odometry_.position(2))*takeoff_ctl_gain;
                 des_takeoff_vel.cwiseMin(-1).cwiseMax(1);
                 ctrlUpdate(des_takeoff_pos, des_takeoff_vel, Eigen::Vector3d::Zero(), 0.0);
             }
@@ -409,7 +436,7 @@ void MavrosUtils::ctrl_loop()
                 Eigen::Vector3d hover_vel;
                 hover_vel = -(odometry_.position - context_.last_state_position)*3;
                 hover_vel.cwiseMin(-1).cwiseMax(1);
-                ctrlUpdate(hover_pos, hover_vel, Eigen::Vector3d::Zero(), 0.0);
+                ctrlUpdate(hover_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), 0.0);
             }
 
         }
@@ -420,10 +447,14 @@ void MavrosUtils::ctrl_loop()
             {
                 ROS_INFO("MODE: RUNNING   ctrl mode == %d ",(int8_t)ctrl_level);
                 // std::cout << "ctrl mode is %d" << ctrl_level << std::endl;
+                super_posm(0) = 0;
+                super_posm(1) = 0;
+                super_posm(2) = params_parse.takeoff_height;
             }
 
             if(ctrl_level == CmdPubType::POSY)
-            {
+            {   
+                double run_ctl_gain = 10;
                 time_flage++;
                 ros::param::get("runnig_false",runnig_false);//节点内param ，选择0 1 :悬停初始点, 飞
 
@@ -433,15 +464,33 @@ void MavrosUtils::ctrl_loop()
                     hover_pos(0) = 0.0;
                     hover_pos(1) = 0.0;
                     hover_pos(2) = 1.5;
-                    ctrlUpdate(hover_pos, hover_vel, Eigen::Vector3d::Zero(), 0.0);
+                    ctrlUpdate(hover_pos, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(), 0.0);
                     if(time_flage%200==0)
                         ROS_INFO("runnig_false==%d",runnig_false);
                 }
                 else if( runnig_false == 1 )
                 {
                     ctrlUpdate(super_posm, super_vel, super_acc, super_yaw);
-                    if(time_flage%200==0)
-                        ROS_INFO("runnig_false==%d",runnig_false);
+                    if(time_flage%200 == 0)
+                        ROS_INFO("runnig_false == %d",runnig_false);
+                }
+                else if( runnig_false == 2 )
+                {
+                    Eigen::Vector3d run_pos,run_vel;
+                    ros::param::get("Test_px",Test_px);
+                    ros::param::get("Test_py",Test_py);
+                    ros::param::get("Test_pz",Test_pz);
+                    ros::param::get("Test_yaw",Test_yaw);
+                    run_pos(0) = Test_px;
+                    run_pos(1) = Test_py;
+                    run_pos(2) = Test_pz;
+
+                    run_ctl_gain = 3;
+                    run_vel = (run_pos-odometry_.position)*run_ctl_gain; 
+                    run_vel.cwiseMin(-1).cwiseMax(1);
+                    ctrlUpdate(run_pos, run_vel, Eigen::Vector3d::Zero(), Test_yaw);
+                    if(time_flage%200 == 0)
+                        ROS_INFO("runnig_false == %d",runnig_false);
                 }
                 // else if( runnig_false == 2 )//故障悬停
                 // {
