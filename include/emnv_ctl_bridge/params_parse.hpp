@@ -5,11 +5,13 @@ struct ParamsParse
 {
     std::string ctrl_out_level;
     std::string ctrl_mode;
-
+    std::string ros_namespace;
+    std::string drone_config_path; // 机型配置文件路径
     double takeoff_height;
     int drone_id;
     double loop_rate;
     std::string name;
+    bool enable_vel_transpose_b2w = false; // 是否启用机体坐标系到世界坐标系的速度转换
 };
 
 #endif

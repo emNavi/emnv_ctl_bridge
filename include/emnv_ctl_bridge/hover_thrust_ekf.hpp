@@ -2,7 +2,7 @@
 #define __HOVER_THRUST_EKF_HPP
 #include <cmath>
 #include <iostream>
-#include "ctrl_bridge/my_math.hpp"
+#include "emnv_ctl_bridge/my_math.hpp"
 
 static constexpr float CONSTANTS_ONE_G = 9.80665f;						// m/s^2
 
@@ -69,7 +69,7 @@ public:
      * 
      * @return 两个整数的和
      */
-    HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise);
+    HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise,double thr_max);
     ~HoverThrustEkf();
     void predict(float dt);
 	void fuseAccZ(float acc_z, float thrust);
@@ -80,12 +80,12 @@ public:
 };
 
 
-inline HoverThrustEkf::HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise)
+inline HoverThrustEkf::HoverThrustEkf(double init_hover_thrust,double hover_thrust_noise,double process_noise,double thr_max=0.9)
 {
     // 更新频率与position callback频率相同
 
     _hover_thr = init_hover_thrust;
-    _hover_thr_max = 0.9;
+    _hover_thr_max = thr_max;
     _hover_thr_min = 0.1;
 
     _state_var = pow(hover_thrust_noise,2);

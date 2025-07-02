@@ -30,11 +30,13 @@ public:
     ros::Time last_try_offboard_time;
     ros::Time last_try_arm_time;
     ros::Time last_try_land_time;
+    ros::Time last_recv_odom_time; // last recv odom time, used for landing
+
 
     std::unordered_map<std::string, std::pair<bool, bool>> flags{
         // default , current
         {"offboard_done", {false, false}},  
-        {"cmd_vaild", {false, false}},      
+        {"cmd_vaild", {true, true}},      
         {"arm_done", {false, false}},
         {"land_done", {false, false}},   
         {"recv_land_cmd", {false, false}},    
@@ -76,9 +78,13 @@ public:
         last_try_offboard_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
         last_try_arm_time = ros::Time::now() - ros::Duration(4);
         last_try_land_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+        last_recv_odom_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
         ROS_INFO("init FSM");
     }
-
+    std::string getStatusMsg()
+    {
+        return stateToString(now_state);
+    }
     inline void process()
     {
         // 状态切换只能是状态切换
@@ -87,7 +93,7 @@ public:
         {
         case IDLE:
         {
-            if(getFlag("recv_takeoff_cmd"))
+            if(getFlag("recv_takeoff_cmd") && !isOdomTimeout())
             {
                 now_state = INITIAL;
             }
@@ -112,7 +118,7 @@ public:
         case HOVER:
         {
 
-            if (getFlag("cmd_vaild"))
+            if (isCmdVaild() == true)
             {
                 now_state = RUNNING;
             }
@@ -126,7 +132,7 @@ public:
         }
         case RUNNING:
         {
-            if (!getFlag("cmd_vaild"))
+            if (!getFlag("cmd_vaild") || isCmdVaild() == false)
             {
                 now_state = HOVER;
             }
@@ -168,24 +174,42 @@ public:
             ROS_INFO("FSM: %s -> %s", stateToString(last_state).c_str(),stateToString(now_state).c_str());
         }
     }
+    bool isOdomTimeout(){
+        if (ros::Time::now() - last_recv_odom_time > ros::Duration(0.3))
+        {
+            double timeout_sec = (ros::Time::now() - last_recv_odom_time).toSec();
+            if(static_cast<int>((timeout_sec*100))%100 == 0)
+            {
+                ROS_INFO_STREAM("odom timeout(s) "<<ros::Time::now() - last_recv_odom_time);
+            }
+            return true;
+        }
+        return false;
+    }
 
     void updateCtrlCmdTimestamp(ros::Time now_time)
     {
         last_recv_pva_time = now_time;
     }
+    void updateOdomTimestamp(ros::Time now_time)
+    {
+        last_recv_odom_time = now_time;
+    }
     bool isCmdVaild()
     {
 
-        if (ros::Time::now() - last_recv_pva_time < ros::Duration(1.0))
+        if (ros::Time::now() - last_recv_pva_time < ros::Duration(0.3))
         {
             return true;
         }
         else
         {
-            if(static_cast<int>((ros::Time::now() - last_recv_pva_time).toSec())/3 == 0)
+            double timeout_sec = (ros::Time::now() - last_recv_pva_time).toSec();
+            if(static_cast<int>((timeout_sec)/3) == 0 && static_cast<int>((timeout_sec*100))%100 == 0)
             {
                 ROS_INFO_STREAM("cmd timeout(s) "<<ros::Time::now() - last_recv_pva_time);
             }
+
             return false;
         }
     }

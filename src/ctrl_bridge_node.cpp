@@ -15,8 +15,8 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <boost/shared_ptr.hpp>
 
-#include "ctrl_bridge/FSM.hpp"
-#include "ctrl_bridge/mavros_utils.hpp"
+#include "emnv_ctl_bridge/FSM.hpp"
+#include "emnv_ctl_bridge/mavros_utils.hpp"
 
 
 
@@ -25,30 +25,28 @@ MavrosUtils* mavros_utils_ptr = nullptr;
 ParamsParse params_parse;
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "ctrl_bridge");
+    ros::init(argc, argv, "emnv_ctl_bridge");
     ros::NodeHandle nh("~");
-
+    params_parse.ros_namespace = ros::this_node::getNamespace();
     CmdPubType ctrl_out_level;
-    nh.param<int>("drone_id", params_parse.drone_id, 99);
     nh.param<double>("takeoff_height", params_parse.takeoff_height, 0.3);
     nh.param<std::string>("ctrl_out_level", params_parse.ctrl_out_level, "ATTI");
     nh.getParam("ctrl_mode", params_parse.ctrl_mode);
 
     nh.param<double>("loop_rate", params_parse.loop_rate, 100.0);
-    nh.param<std::string>("name", params_parse.name, "drone");
+    nh.param<std::string>("drone_name", params_parse.name, "drone");
 
+    nh.param<bool>("enable_vel_transpose_b2w", params_parse.enable_vel_transpose_b2w, false);
+
+    nh.param<std::string>("drone_config_path", params_parse.drone_config_path, "");
 
     std::cout << "ctrl_out_level " << params_parse.ctrl_out_level << std::endl;
-    std::cout << "drone id " << params_parse.drone_id << std::endl;
     std::cout << "takeoff_height" << params_parse.takeoff_height << std::endl;
+
+
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    mavros_utils_ptr = new MavrosUtils(nh);
-    if(mavros_utils_ptr->set_bridge_mode(params_parse.ctrl_mode, params_parse.ctrl_out_level) < 0)
-    {
-        printf("set_bridge_mode error\n");
-        return -1;
-    }
-    std::cout << "set_bridge_mode success" << std::endl;
+    mavros_utils_ptr = new MavrosUtils(nh, params_parse);
     mavros_utils_ptr->waitConnected();
     mavros_utils_ptr->ctrl_loop();
     return 0;

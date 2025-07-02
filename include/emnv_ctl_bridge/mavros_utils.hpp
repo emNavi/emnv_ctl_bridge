@@ -14,12 +14,12 @@
 #include <strings.h>
 #include <Eigen/Eigen>
 #include <std_msgs/String.h> 
-#include "ctrl_bridge/linear_controller.hpp"
-#include "ctrl_bridge/my_math.hpp"
-#include "ctrl_bridge/Px4AttitudeController.hpp"
-#include "ctrl_bridge/params_parse.hpp"
-#include "ctrl_bridge/FSM.hpp"
-#include "quadrotor_msgs/PositionCommand.h"
+#include "emnv_ctl_bridge/linear_controller.hpp"
+#include "emnv_ctl_bridge/my_math.hpp"
+#include "emnv_ctl_bridge/Px4AttitudeController.hpp"
+#include "emnv_ctl_bridge/params_parse.hpp"
+#include "emnv_ctl_bridge/FSM.hpp"
+#include "emnv_ctl_bridge/PvayCommand.h"
 
 enum class CtrlMode {
     QUAD_T,
@@ -67,6 +67,7 @@ public:
     Eigen::Vector3d last_state_position;
     // Eigen::Vector3d last_state_velocity;
     Eigen::Quaterniond last_state_attitude;
+    double last_state_yaw = 0.0; // last state yaw, used for landing
 
 
 };
@@ -126,6 +127,7 @@ private:
     ros::Publisher local_pvay_pub,ctrl_atti_pub_,ctrl_posy_pub_;
     // Publish MavUtils State
     ros::Publisher hover_thrust_pub_;
+    ros::Publisher bridge_status_pub;
 
     ros::ServiceClient set_mode_client_, arming_client_;
     // ==================  Params  ==================
@@ -135,7 +137,7 @@ private:
     Px4AttitudeController atti_controller_;
 
 public:
-    MavrosUtils(ros::NodeHandle &_nh);
+    MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse);
     ~MavrosUtils();
 
     MavContext context_;
@@ -146,10 +148,12 @@ public:
     LinearControl lin_controller;
     // ==================  Callback  ==================
     void mavStateCallback(const mavros_msgs::State::ConstPtr &msg);
+    void mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
+    
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
     void mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
-    void mavSupergetCallback(const quadrotor_msgs::PositionCommand::ConstPtr &msg);
+    // void TargetPvayCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
     void mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name);
     void mavLandCallback(const std_msgs::String::ConstPtr& msg, std::string name);
     void mavCmd_vaildCallback(const std_msgs::String::ConstPtr& msg, std::string name);
@@ -157,7 +161,8 @@ public:
     void mavVisionPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
-    void mavPosCtrlSpCallback(const mavros_msgs::PositionTarget::ConstPtr &msg);
+    void mavPosCtrlSpCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
+
     void mavLocalLinearVelCallback(const mavros_msgs::PositionTarget::ConstPtr &msg);
     void mavAttiSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
     void mavRateSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
@@ -212,11 +217,7 @@ public:
      * @return 返回初始化成功与否
      */
     void ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, Eigen::Vector3d des_acc, double des_yaw);
-    // void ctrlUpdate(Eigen::Quaterniond des_atti, double des_thrust);
-    // void ctrlUpdate(Eigen::MatrixX3d, double des_thrust);
-    // void ctrlUpdate(Eigen::Vector3d des_rate, double des_thrust);
     void ctrlUpdate(Eigen::Vector3d des_vel,double des_yaw, double dt);
-
     void ctrl_loop();
 
     int set_bridge_mode(std::string ctrl_mode_str, std::string cmd_pub_type_str);

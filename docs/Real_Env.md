@@ -1,5 +1,18 @@
 # 在真实场景中使用
 
+
+## ros 安装
+
+> 国内安装 noetic
+
+
+## Real Env
+```bash
+roslaunch ctrl_bridge ctrl_bridge.launch
+```
+
+
+
 ### 位姿数据pipeline
 真实场景中的使用涉及了位姿数据的传递， 我们提供了多种方式
 **类GPS场景（state mode 0）** 

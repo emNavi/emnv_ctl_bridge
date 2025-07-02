@@ -1,7 +1,7 @@
 #ifndef __PX4_ATTITUDE_CONTROLLER
 #define __PX4_ATTITUDE_CONTROLLER
 #include <Eigen/Eigen>
-#include "ctrl_bridge/my_math.hpp"
+#include "emnv_ctl_bridge/my_math.hpp"
 #include <iostream>
 #include <cmath>
 
@@ -98,7 +98,7 @@ public:
 inline Px4AttitudeController::Px4AttitudeController(/* args */)
 {
 	_rate_limit << 1600/57.3,1600/57.3,1000/57.3;
-	set_pid_params(Eigen::Vector3d(8.0, 8.0, 1.0));
+	set_pid_params(Eigen::Vector3d(6.5, 6.5, 2.8));
 	_yaw_w = 0.400;
 	// compensate for the effect of the yaw weight rescaling the output
 	if (_yaw_w > 1e-4f) {
@@ -124,6 +124,9 @@ inline Eigen::Quaterniond eigen_canonical(Eigen::Quaterniond q)
 }
 inline Eigen::Vector3d Px4AttitudeController::update(const Eigen::Quaterniond &q,const Eigen::Quaterniond &attitude_setpoint_q)
 {
+	std::cout << q << std::endl;
+	std::cout << attitude_setpoint_q << std::endl<< std::endl;
+
 	// 期望，反馈坐标系 均为 world
     Eigen::Quaterniond qd = attitude_setpoint_q;
     Eigen::Vector3d e_z = q.toRotationMatrix().col(2);
@@ -132,9 +135,6 @@ inline Eigen::Vector3d Px4AttitudeController::update(const Eigen::Quaterniond &q
     Eigen::Quaterniond qd_red = getAttiErr(e_z,e_z_d);
 
 	if (fabsf(qd_red.x()) > (1.f - 1e-5f) || fabsf(qd_red.y()) > (1.f - 1e-5f)) {
-        // 当 四元数中的 x或y项非常接近1时， 当前推力朝向与目标推力朝向完全相反，此时Full attitude control 不会产生任何Yaw角输入
-        // 而是直接采用Roll和Pitch的组合，从而获得正确的Yaw.忽略这种情况仍然是安全和稳定的。
-        // 不忽略的话会怎么样？ 总不能是少算一步少点误差吧
 		// In the infinitesimal corner case where the vehicle and thrust have the completely opposite direction,
 		// full attitude control anyways generates no yaw input and directly takes the combination of
 		// roll and pitch leading to the correct desired yaw. Ignoring this case would still be totally safe and stable.

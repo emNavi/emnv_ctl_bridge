@@ -2,8 +2,8 @@
 #define __LINEAR_CONTROL_HPP
 
 #include <geometry_msgs/Twist.h>
-#include "ctrl_bridge/hover_thrust_ekf.hpp"
-#include "ctrl_bridge/my_math.hpp"
+#include "emnv_ctl_bridge/hover_thrust_ekf.hpp"
+#include "emnv_ctl_bridge/my_math.hpp"
 #include <Eigen/Eigen>
 #include "derivative.hpp"
 
@@ -33,8 +33,12 @@ private:
 
     Eigen::Vector3d _param_max_des_vel{5,5,5};
 
-    double _hover_thrust;
 
+    double smooth_move_target_vel_;
+    Eigen::Vector3d last_smooth_move_pos_;
+
+    double _hover_thrust;
+    double _max_tile_rad = 0.5; // 最大倾斜角度，单位弧度
 
     /* data */
 public:
@@ -46,10 +50,18 @@ public:
         ACC = 4
     };
     int ctrl_mask;
+
+    inline void set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_gain, Eigen::Vector3d a_gain);
+
+    void set_max_tile(double deg)
+    {
+        _max_tile_rad = deg * M_PI / 180.0; // 转换为弧度
+    }
+
     
-    // void update(geometry_msgs::Twist::ConstPtr  &des,double yaw_sp,double dt);
     void update(Eigen::Vector3d  &des_position,Eigen::Vector3d  &des_linear_vel,Eigen::Vector3d  &des_acc,double des_yaw,double dt);
-    void update(Eigen::Vector3d  &des_linear_vel,double yaw_sp,double dt);
+    void smooth_move_init();
+    void smooth_move(Eigen::Vector3d &des_position, double target_vel, double des_yaw, double dt);
     
     void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt);
     void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q);
@@ -59,16 +71,30 @@ public:
     {
         _hover_thrust = t;
     }
+    void setCtrlMask(int mask)
+    {
+        ctrl_mask = mask;
+    }
 
 };
 
 inline LinearControl::LinearControl()
 {
     ctrl_mask=CTRL_MASK::POSI|CTRL_MASK::VEL|CTRL_MASK::ACC;
-    _gain_p << 1.5,1.5,1.5;
-    _gain_v << 1.5,1.5,1.5;
+    _gain_p << 2,2,2;
+    _gain_v << 2,2,2;
     _gain_a << 1.5,1.5,1.5;
     thrust_exp = 0.3;
+}
+inline void LinearControl::set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_gain, Eigen::Vector3d a_gain)
+{
+    _gain_p = p_gain;
+    _gain_v = v_gain;
+    _gain_a = a_gain;
+    std::cout << "LinearControl gains set to: " << std::endl;
+    std::cout << "P: " << _gain_p.transpose() << std::endl;
+    std::cout << "V: " << _gain_v.transpose() << std::endl;
+    std::cout << "A: " << _gain_a.transpose() << std::endl;
 }
 inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
 {
@@ -92,19 +118,9 @@ inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, 
  
 
 }
-// inline LinearControl::smooth_move_to(Eigen::Vector3d &des_pos,double des_yaw,double interval)
-// {
-//     Eigen::Vector3d des_vel = (des_pos - _pos_world) / interval;
-//     Eigen::Vector3d des_acc = (des_vel - _vel_world) / interval;
-//     Eigen::Vector3d des_jerk = (des_acc - _des_acc) / interval;
-//     Eigen::Vector3d des_snap = (des_jerk - _des_jerk) / interval;
-//     _des_acc = des_acc;
-//     _des_jerk = des_jerk;
-//     _des_snap = des_snap;
-// }
 
 /* 
-* 由期望位姿通过微分平坦计算期望姿态
+* 更新姿态期望
 * @param des_position 期望位置(world frame)
 * @param des_linear_vel 期望速度(world frame)
 * @param des_acc 期望加速度(world frame)
@@ -125,40 +141,54 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
         // _des_acc = _gain_v_p.asDiagonal()*(des_linear_vel - _vel_world) + _gain_v_i.asDiagonal() * _des_acc_int;
         // _vel_error = (des_linear_vel - _vel_world).cwiseMax(-_param_max_des_vel).cwiseMin(_param_max_des_vel);
         // _des_acc_int += _vel_error ; 
-
-
-
     }
     if(ctrl_mask & CTRL_MASK::ACC)
     {
         _des_acc += des_acc;
     }
-
     // _des_acc =        _gain_v_p.asDiagonal()*(des_linear_vel - _vel_world) + _gain_v_i.asDiagonal() * _des_acc_int;
     // _vel_error = (des_linear_vel - _vel_world).cwiseMax(-_param_max_des_vel).cwiseMin(_param_max_des_vel);
     // _des_acc_int += _vel_error ; 
     // _des_acc += Eigen::Vector3d(0,0,CONSTANTS_ONE_G);
-
     thrust_exp = _des_acc(2) * (_hover_thrust / CONSTANTS_ONE_G) + _hover_thrust;
-    // ROS_INFO_STREAM("_des_acc"<< _des_acc << "thrust_exp" << thrust_exp << "_hover_thrust"<<_hover_thrust);
     double roll, pitch, yaw, yaw_imu;
     double yaw_odom = MyMath::fromQuaternion2yaw(_q_world);
+    
+
     double sin = std::sin(yaw_odom);
     double cos = std::cos(yaw_odom);
     roll = (_des_acc(0) * sin - _des_acc(1) * cos) / CONSTANTS_ONE_G;
     pitch = (_des_acc(0) * cos + _des_acc(1) * sin) / CONSTANTS_ONE_G;
+    if (std::abs(roll) > _max_tile_rad) {
+        roll = (roll > 0 ? 1 : -1) * _max_tile_rad;
+    }
+    if (std::abs(pitch) > _max_tile_rad) {
+        pitch = (pitch > 0 ? 1 : -1) * _max_tile_rad;
+    }
     q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
 }
-/* 
-* 由期望位姿通过微分平坦计算期望姿态
-* @param des_linear_vel 期望速度(world frame)
-* @param yaw_sp 期望偏航角(world frame)
-*/
-inline void LinearControl::update(Eigen::Vector3d  &des_linear_vel,double des_yaw,double dt)
+inline void LinearControl::smooth_move_init()
 {
-    ctrl_mask = CTRL_MASK::VEL;
-    Eigen::Vector3d empty_vec = Eigen::Vector3d(0,0,0);
-    update(empty_vec,des_linear_vel,empty_vec,des_yaw,dt);
+    last_smooth_move_pos_ = _pos_world;
+} 
+
+inline void LinearControl::smooth_move(Eigen::Vector3d &des_position, double target_vel, double des_yaw, double dt)
+{
+    smooth_move_target_vel_ = target_vel;
+    Eigen::Vector3d direction;
+    Eigen::Vector3d des_pos;
+    Eigen::Vector3d des_linear_vel = Eigen::Vector3d::Zero();
+    if ((des_position - last_smooth_move_pos_).norm() > 1e-2) {
+        direction = (des_position - last_smooth_move_pos_).normalized();
+        des_pos = last_smooth_move_pos_ + direction * std::abs(smooth_move_target_vel_) * dt;
+        des_linear_vel = std::abs(smooth_move_target_vel_) * direction;
+
+    } else {
+        des_pos = last_smooth_move_pos_;
+        des_linear_vel = Eigen::Vector3d::Zero();
+    }
+    Eigen::Vector3d des_acc = Eigen::Vector3d::Zero(); // 平滑移动时加速度
+    update(des_pos, des_linear_vel, des_acc, des_yaw, dt);
 }
 
 
