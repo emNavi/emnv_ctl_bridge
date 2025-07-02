@@ -1,29 +1,36 @@
 <launch>
-    <arg name = "drone_id" default = "1"/>
+    <arg name = "drone_name" default = "drone"/>
     <arg name = "takeoff_height" default = "1.1"/>
-    <arg name = "in_real" default="true" />
-    <arg name = "cmd_pub_type" default = "RATE"/>
+    <arg name = "in_real" default="false" />
 
+
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "cmd_pub_type" default = "ATTI"/>
+    <!--   QUAD_T, RATE_T, PVA_Ys, -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    
+
+
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <node name = "ctrl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+        <remap from="~pos_sp_cmd" to="/traj_test/cmd"/>
+        <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
+        
+        <remap from="~ref_odom" to="/mavros/local_position/odom"/>
+        <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
+        <param name ="enable_vel_transpose_b2w" value="true"/>
+        <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_X280.yaml"/>
+
+        <param name ="drone_name" value="$(arg drone_name)"/>
+        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+
+    </node> 
+    <!-- 不要使用GSC_URL -->
+    <!-- v1.13.3 版本对应的 gazebo 有问题，无法起飞 -->
     <include if="$(arg in_real)" file="$(find mavros)/launch/px4.launch">
         <arg name="fcu_url" value="/dev/ttyACM0:921600"/>
-        <!-- <arg name="fcu_url" value="udp://:14550@127.0.0.1:18570"/> -->
-
         <arg name="gcs_url" value="udp://:14540@192.168.8.10:14550"/>
     </include>
-
-    <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen">
-        <!-- choose One -->
-        <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
-        <remap from="~rate_sp_sub" to="/airgym/cmd"/>
-        <!-- <remap from="~atti_sp_sub" to="/airgym/cmd"/> -->
-
-        <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
-
-
-        <param name ="drone_id" value="$(arg drone_id)"/>
-        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
-        <param name ="ctrl_out_level" value="$(arg ctrl_out_level)"/>
-        <!-- RATE or ATTI -->
-
-    </node>
 </launch>
