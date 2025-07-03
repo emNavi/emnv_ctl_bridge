@@ -10,8 +10,6 @@
 
 
     <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
-    <group ns="drone1">
-
     <node name = "ctrl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
         <remap from="~pos_sp_cmd" to="/traj_test/cmd"/>
         <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
@@ -33,5 +31,4 @@
             <arg name="fcu_url" value="udp://:14540@127.0.0.1:1857"/>
             <arg name="log_output" value="log"/>
         </include>
-    </group>
 </launch>
