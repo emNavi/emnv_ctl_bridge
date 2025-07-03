@@ -3,7 +3,7 @@
 #include <Eigen/Eigen>
 struct ParamsParse
 {
-    std::string ctrl_out_level;
+    std::string ctrl_pub_level;
     std::string ctrl_mode;
     std::string ros_namespace;
     std::string drone_config_path; // 机型配置文件路径

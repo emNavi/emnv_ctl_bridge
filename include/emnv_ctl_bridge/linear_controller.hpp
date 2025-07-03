@@ -180,13 +180,12 @@ inline void LinearControl::smooth_move(Eigen::Vector3d &des_position, double tar
     Eigen::Vector3d des_linear_vel = Eigen::Vector3d::Zero();
     if ((des_position - last_smooth_move_pos_).norm() > 1e-2) {
         direction = (des_position - last_smooth_move_pos_).normalized();
-        des_pos = last_smooth_move_pos_ + direction * std::abs(smooth_move_target_vel_) * dt;
+        last_smooth_move_pos_ = last_smooth_move_pos_ + direction * std::abs(smooth_move_target_vel_) * dt;
         des_linear_vel = std::abs(smooth_move_target_vel_) * direction;
-
     } else {
-        des_pos = last_smooth_move_pos_;
         des_linear_vel = Eigen::Vector3d::Zero();
     }
+    des_pos = last_smooth_move_pos_;
     Eigen::Vector3d des_acc = Eigen::Vector3d::Zero(); // 平滑移动时加速度
     update(des_pos, des_linear_vel, des_acc, des_yaw, dt);
 }

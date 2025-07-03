@@ -28,9 +28,9 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "emnv_ctl_bridge");
     ros::NodeHandle nh("~");
     params_parse.ros_namespace = ros::this_node::getNamespace();
-    CmdPubType ctrl_out_level;
+    CmdPubType ctrl_pub_level;
     nh.param<double>("takeoff_height", params_parse.takeoff_height, 0.3);
-    nh.param<std::string>("ctrl_out_level", params_parse.ctrl_out_level, "ATTI");
+    nh.param<std::string>("ctrl_pub_level", params_parse.ctrl_pub_level, "ATTI");
     nh.getParam("ctrl_mode", params_parse.ctrl_mode);
 
     nh.param<double>("loop_rate", params_parse.loop_rate, 100.0);
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 
     nh.param<std::string>("drone_config_path", params_parse.drone_config_path, "");
 
-    std::cout << "ctrl_out_level " << params_parse.ctrl_out_level << std::endl;
+    std::cout << "ctrl_pub_level " << params_parse.ctrl_pub_level << std::endl;
     std::cout << "takeoff_height" << params_parse.takeoff_height << std::endl;
 
 

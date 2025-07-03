@@ -1,3 +1,12 @@
+# 多项式轨迹生成
+
+## 快速开始
+
+launch中提供了gazebo演示示例`2gazebo_traj_test.launch`
+```bash
+source devel/setup.bash
+roslaunch 
+```
 ## traj replay
 ### record
 

@@ -113,6 +113,15 @@ public:
             {
                 now_state = HOVER;
             }
+            else if (isOdomTimeout())
+            {
+                ROS_WARN("Takeoff timeout, reset to LANDING");
+                now_state = LANDING;
+            }
+            else if (getFlag("recv_land_cmd"))
+            {
+                now_state = LANDING;
+            }
             break;
         }
         case HOVER:

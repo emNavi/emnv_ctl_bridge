@@ -1,12 +1,9 @@
 <launch>
     <arg name = "drone_name" default = "iris"/>
     <arg name = "takeoff_height" default = "1.1"/>
-    <arg name = "in_real" default="false" />
-
-
     <!-- RATE,ATTI,POSY  -->
-    <arg name = "cmd_pub_type" default = "ATTI"/>
-    <!--   QUAD_T, RATE_T, PVA_Ys, -->
+    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
     
 
@@ -23,7 +20,7 @@
 
         <param name ="drone_name" value="$(arg drone_name)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
-        <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
+        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
 
     </node> 

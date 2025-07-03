@@ -77,6 +77,7 @@ class MavrosUtils
 public:
     // ==================  Params  ==================
     CmdPubType ctrl_level;
+    CtrlMode ctrl_mode;
 
     // 所有可能用到的控制变量
     struct CtrlCommand
@@ -216,8 +217,7 @@ public:
      * @param des_yaw 期望yaw角
      * @return 返回初始化成功与否
      */
-    void ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, Eigen::Vector3d des_acc, double des_yaw);
-    void ctrlUpdate(Eigen::Vector3d des_vel,double des_yaw, double dt);
+    void ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, Eigen::Vector3d des_acc, double des_yaw, double dt);
     void ctrl_loop();
 
     int set_bridge_mode(std::string ctrl_mode_str, std::string cmd_pub_type_str);

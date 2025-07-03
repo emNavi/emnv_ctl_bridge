@@ -79,7 +79,7 @@ public:
 	void set_pid_params(Eigen::Vector3d p_gain)
 	{
 		_proportional_gain = p_gain;
-		std::cout << _proportional_gain <<std::endl;
+		std::cout << "Atti Gain " << _proportional_gain.transpose() <<std::endl;
 
 	};
 	Eigen::Vector3d update(const Eigen::Vector4d &q_sp,const Eigen::Vector4d &q)
@@ -107,6 +107,7 @@ inline Px4AttitudeController::Px4AttitudeController(/* args */)
 	_yawspeed_setpoint = 0;
 }
 
+
 inline Px4AttitudeController::~Px4AttitudeController()
 {
 }
@@ -124,9 +125,6 @@ inline Eigen::Quaterniond eigen_canonical(Eigen::Quaterniond q)
 }
 inline Eigen::Vector3d Px4AttitudeController::update(const Eigen::Quaterniond &q,const Eigen::Quaterniond &attitude_setpoint_q)
 {
-	std::cout << q << std::endl;
-	std::cout << attitude_setpoint_q << std::endl<< std::endl;
-
 	// 期望，反馈坐标系 均为 world
     Eigen::Quaterniond qd = attitude_setpoint_q;
     Eigen::Vector3d e_z = q.toRotationMatrix().col(2);
