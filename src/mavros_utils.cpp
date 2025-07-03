@@ -476,12 +476,13 @@ void MavrosUtils::ctrl_loop()
                 context_.landing_touchdown_start_time = ros::Time::now();
                 ROS_INFO("MODE: LAND");
             }
+            double target_land_vel = 0.5; // m/s
 
             if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
                 Eigen::Vector3d land_vel;
                 land_vel = (context_.last_state_position - odometry_.position) * 3;
-                land_vel(2) = -0.5;
+                land_vel(2) = -target_land_vel;
                 land_vel.cwiseMin(-1).cwiseMax(1);
                 Eigen::Vector3d des_pos = Eigen::Vector3d::Zero();
                 Eigen::Vector3d des_acc = Eigen::Vector3d::Zero();
@@ -502,7 +503,7 @@ void MavrosUtils::ctrl_loop()
             }
             else if(ctrl_level == CmdPubType::POSY)
             {
-                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - 0.01*0.5;
+                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - 0.01*target_land_vel;
                 ctrl_cmd_.velocity(0) = 0;
                 ctrl_cmd_.velocity(1) = 0;
                 ctrl_cmd_.velocity(2) = 0;
@@ -529,29 +530,6 @@ void MavrosUtils::ctrl_loop()
                     }
                     fsm.setFlag("land_done", true);
                 }
-
-                // if (context_.mode != "AUTO.LAND" &&
-                //     (ros::Time::now() - fsm.last_try_offboard_time > ros::Duration(5.0)))
-                // {
-                //     if (!request_land())
-                //         ROS_WARN("Try land cmd failed, pls try again in 5 seconds");
-                //     fsm.last_try_offboard_time = ros::Time::now();
-                // }
-            }
-            // bool request_land()
-            // {
-            //     mavros_msgs::SetMode auto_land_mode;
-            //     arm_cmd.request.value = true;
-            //     auto_land_mode.request.custom_mode = "AUTO.LAND";
-
-            //     if (set_mode_client.call(auto_land_mode) &&
-            //         auto_land_mode.response.mode_sent)
-            //     {
-            //         ROS_INFO("Landing");
-            //         return true;
-            //     }
-            //     return false;
-            // }
         }
         sentCtrlCmd();
         ros::spinOnce();
