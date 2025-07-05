@@ -114,6 +114,7 @@ private:
     // ==================  Node  ==================
     // Subscribe Mavros Msg
     ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub,super_target_sub;
+    ros::Publisher world_odom_pub_;
     // Subscribe Ctrl Command
     ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
     // ros::Subscriber local_linear_vel_sub;

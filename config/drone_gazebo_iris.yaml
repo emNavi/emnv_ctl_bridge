@@ -1,17 +1,17 @@
 linear_controller:
   gain:
-    Kpxy: 1.5
-    Kpz: 1.5
-    Kvxy: 1.5
-    Kvz: 1.5
-    Kaxy: 0.5
+    Kpxy: 9
+    Kpz: 6
+    Kvxy: 3
+    Kvz: 3
+    Kaxy: 0.6
     Kaz: 0.5
-  max_tile_deg: 30 # deg
+  max_tile_deg: 40 # deg
 hover_thrust_ekf:
   init_hover_thrust: 0.6
   hover_thrust_max: 0.8
   hover_thrust_noise: 0.1
-  process_noise: 0.0036
+  process_noise: 0.04
 atti_controller:
   gain:
     Kx: 1.5

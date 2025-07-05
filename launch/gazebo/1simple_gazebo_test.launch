@@ -1,5 +1,5 @@
 <launch>
-    <arg name = "drone_name" default = "drone"/>
+    <arg name = "drone_name" default = "iris"/>
     <arg name = "takeoff_height" default = "1.1"/>
 
     <!-- RATE,ATTI,POSY  -->

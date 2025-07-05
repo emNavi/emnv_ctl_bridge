@@ -18,3 +18,32 @@ roslaunch
 ### 重构轨迹
 
 我们使用五次多项式重构轨迹并重采样轨迹为YYMMDDhhmmss_ploy.csv
+
+
+
+
+## 轨迹跟踪
+<!-- 
+已知
+$$
+q_{curyaw}^{despr},q_{world}^{desyaw},
+$$
+
+我可以求得
+
+$$
+\begin{aligned}
+q_{baselink}^{des} &= q_{baselink}^{desyaw} \times q_{desyaw}^{despr} \\
+&=  q_{baselink}^{desyaw} \times (q_{curyaw}^{desyaw})^{-1}  \times q_{curyaw}^{despr} \\
+\end{aligned}
+$$
+
+我需要
+
+$$
+\begin{aligned}
+q_{world}^{des}&=q_{world}^{baselink}\times q_{baselink}^{des}\\
+&= q_{world}^{baselink}\times(q_{world}^{baselink} )^{-1} \times q_{world}^{desyaw} \times (q_{curyaw}^{desyaw})^{-1} \times q_{curyaw}^{despr}\\
+&= q_{world}^{desyaw} \times (q_{curyaw}^{desyaw})^{-1} \times q_{curyaw}^{despr}
+\end{aligned}
+$$ -->

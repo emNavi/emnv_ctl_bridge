@@ -67,11 +67,13 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     if (params_parse.enable_vel_transpose_b2w)
     {
         current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavLocalOdomCallback, this);
+
     }
     else
     {
         current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavRefOdomCallback, this);
     }
+    world_odom_pub_ = _nh.advertise<nav_msgs::Odometry>("world_odom", 10);
 
     // sub mavros states
     state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
@@ -403,20 +405,13 @@ void MavrosUtils::ctrl_loop()
             }
             else if(ctrl_level == CmdPubType::POSY)
             {
+                // TODO 平滑
                 ctrl_cmd_.position = des_takeoff_pos;
                 ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
                 ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
-                ctrl_cmd_.velocity(2) = 0.5;
                 ctrl_cmd_.yaw = context_.last_state_yaw;
             }
-            //     takeoff_ctl_gain = 3;
-            //     des_takeoff_vel(0) = 0;
-            //     des_takeoff_vel(1) = 0;
-            //     des_takeoff_vel(2) = (des_takeoff_pos(2)-odometry_.position(2))*takeoff_ctl_gain;
-            //     des_takeoff_vel.cwiseMin(-1).cwiseMax(1);
 
-            //     ctrlUpdate(des_takeoff_pos, des_takeoff_vel, Eigen::Vector3d::Zero(), 0.0);
-            // }
             // set auto_takeoff_height
             if (abs(odometry_.position(2) - params_parse.takeoff_height) < 0.1)
             {
@@ -440,6 +435,7 @@ void MavrosUtils::ctrl_loop()
             }
             else if (ctrl_level == CmdPubType::POSY)
             {
+
             }
         }
         else if (fsm.now_state == CtrlFSM::RUNNING)
@@ -483,7 +479,7 @@ void MavrosUtils::ctrl_loop()
                 Eigen::Vector3d land_vel;
                 land_vel = (context_.last_state_position - odometry_.position) * 3;
                 land_vel(2) = -target_land_vel;
-                land_vel.cwiseMin(-1).cwiseMax(1);
+                land_vel.cwiseMin(1).cwiseMax(-1);
                 Eigen::Vector3d des_pos = Eigen::Vector3d::Zero();
                 Eigen::Vector3d des_acc = Eigen::Vector3d::Zero();
                 ctrlUpdate(des_pos,land_vel,des_acc, context_.last_state_yaw, 0.01);
@@ -542,7 +538,7 @@ void MavrosUtils::ctrl_loop()
 void MavrosUtils::mavPosCtrlSpCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg)
 {
     fsm.updateCtrlCmdTimestamp(ros::Time::now());
-    if (fsm.now_state == CtrlFSM::RUNNING)
+    if (fsm.now_state == CtrlFSM::RUNNING | fsm.now_state == CtrlFSM::HOVER)
     {
         ctrl_cmd_.position(0) = msg->position.x;
         ctrl_cmd_.position(1) = msg->position.y;
@@ -685,7 +681,7 @@ void MavrosUtils::mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     odometry_.attitude.w() = msg->pose.pose.orientation.w;
 
     odometry_.velocity = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
-
+    ROS_INFO("gogogo");
     lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude);
 }
 void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
@@ -702,6 +698,26 @@ void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     Eigen::Vector3d base_link_vel = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
     odometry_.velocity = odometry_.attitude * base_link_vel; // body frame to world frame
     lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude);
+
+    nav_msgs::Odometry world_odom;
+    world_odom.header.stamp = msg->header.stamp;
+    world_odom.header.frame_id = "world"; // 世界坐标系
+    world_odom.child_frame_id = "base_link"; // 子坐标系
+    world_odom.pose.pose.position.x = odometry_.position(0);
+    world_odom.pose.pose.position.y = odometry_.position(1);
+    world_odom.pose.pose.position.z = odometry_.position(2);
+    world_odom.pose.pose.orientation.x = odometry_.attitude.x();
+    world_odom.pose.pose.orientation.y = odometry_.attitude.y();
+    world_odom.pose.pose.orientation.z = odometry_.attitude.z();
+    world_odom.pose.pose.orientation.w = odometry_.attitude.w();
+    world_odom.twist.twist.linear.x = odometry_.velocity(0);
+    world_odom.twist.twist.linear.y = odometry_.velocity(1);
+    world_odom.twist.twist.linear.z = odometry_.velocity(2);
+    world_odom.twist.twist.angular.x = odometry_.rate(0);
+    world_odom.twist.twist.angular.y = odometry_.rate(1);
+    world_odom.twist.twist.angular.z = odometry_.rate(2);
+
+    world_odom_pub_.publish(world_odom); // 发布世界坐标系下的odom
 }
 
 void MavrosUtils::mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg)

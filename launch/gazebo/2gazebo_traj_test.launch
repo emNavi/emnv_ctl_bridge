@@ -24,7 +24,7 @@
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
 
     </node> 
-    <node name = "traj_test" pkg = "emnv_ctl_bridge" type = "traj_test" output = "screen" required="true">
+    <node name = "traj_test" pkg = "emnv_ctl_bridge" type = "traj_test" output = "screen"  required="false">
         <remap from="~bridge_status" to="/ctrl_bridge/bridge_status"/>
 
         <param name ="pub_cmd_flag" value="true"/>

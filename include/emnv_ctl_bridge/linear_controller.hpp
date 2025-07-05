@@ -63,7 +63,6 @@ public:
     void smooth_move_init();
     void smooth_move(Eigen::Vector3d &des_position, double target_vel, double des_yaw, double dt);
     
-    void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt);
     void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q);
     Eigen::Quaterniond q_exp;
     double thrust_exp;
@@ -96,18 +95,18 @@ inline void LinearControl::set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_g
     std::cout << "V: " << _gain_v.transpose() << std::endl;
     std::cout << "A: " << _gain_a.transpose() << std::endl;
 }
-inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
-{
-    _vel_world = vel;
-    _pos_world = pos;
-    _q_world.w() = q(0);
-    _q_world.x() = q(1);
-    _q_world.y() = q(2);
-    _q_world.z() = q(3);
-    _angular_vel_world = angular_velocity;
+// inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
+// {
+//     _vel_world = vel;
+//     _pos_world = pos;
+//     _q_world.w() = q(0);
+//     _q_world.x() = q(1);
+//     _q_world.y() = q(2);
+//     _q_world.z() = q(3);
+//     _angular_vel_world = angular_velocity;
 
 
-}
+// }
 inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q)
 {
     _vel_world = vel;
@@ -131,9 +130,22 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
 {
     // 应该用完整的PID控制器
     _des_acc = Eigen::Vector3d(0,0,0);
+    Eigen::Vector3d exp_lin_vel = Eigen::Vector3d(0,0,0);
     if(ctrl_mask & CTRL_MASK::POSI)
     {
-        _des_acc += _gain_p.asDiagonal()*(des_position - _pos_world);
+
+        Eigen::Vector3d des_position_error = des_position - _pos_world;
+        if( des_position_error.norm() > 5)
+        {
+            des_position_error = des_position_error.normalized() * 5; // 限制位置误差
+        }
+        exp_lin_vel += _gain_p.asDiagonal()*(des_position_error);
+        if(exp_lin_vel.norm()  > 10)
+        {
+            exp_lin_vel = exp_lin_vel.normalized() *10; // 限制期望速度
+        }
+        Eigen::Vector3d diag = Eigen::Vector3d(0.2, 0.2, 0.6).cwiseProduct(_gain_v);
+        des_acc += diag.asDiagonal()*(exp_lin_vel - _vel_world);
     }
     if(ctrl_mask & CTRL_MASK::VEL)
     {
@@ -144,7 +156,7 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     }
     if(ctrl_mask & CTRL_MASK::ACC)
     {
-        _des_acc += des_acc;
+        _des_acc +=_gain_a.asDiagonal()*des_acc;
     }
     // _des_acc =        _gain_v_p.asDiagonal()*(des_linear_vel - _vel_world) + _gain_v_i.asDiagonal() * _des_acc_int;
     // _vel_error = (des_linear_vel - _vel_world).cwiseMax(-_param_max_des_vel).cwiseMin(_param_max_des_vel);
@@ -155,8 +167,8 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     double yaw_odom = MyMath::fromQuaternion2yaw(_q_world);
     
 
-    double sin = std::sin(yaw_odom);
-    double cos = std::cos(yaw_odom);
+    double sin = std::sin(des_yaw);
+    double cos = std::cos(des_yaw); // 不是 当前里程计的值，与px4的逻辑有关
     roll = (_des_acc(0) * sin - _des_acc(1) * cos) / CONSTANTS_ONE_G;
     pitch = (_des_acc(0) * cos + _des_acc(1) * sin) / CONSTANTS_ONE_G;
     if (std::abs(roll) > _max_tile_rad) {
@@ -165,7 +177,9 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     if (std::abs(pitch) > _max_tile_rad) {
         pitch = (pitch > 0 ? 1 : -1) * _max_tile_rad;
     }
-    q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
+     Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
+     Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
 }
 inline void LinearControl::smooth_move_init()
 {

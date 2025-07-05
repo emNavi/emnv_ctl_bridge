@@ -46,8 +46,8 @@ cmd_out_level 是 ctrl_bridge 发送给px4的指令类型可选择
 ### 起飞降落指令
 
 ctl bridge 提供快速起飞与降落的功能
-  - ctrl_bridge/takeoff Bool msg
-  - ctrl_bridge/land  Bool msg
+  - /ctrl_bridge/takeoff Bool msg
+  - /ctrl_bridge/land  Bool msg
 ```bash
 # source src/control_for_gym/Tools/help_func.sh # 默认已经包含在了 devel/setup.bash 中
 source devel/setup.bash
@@ -60,10 +60,10 @@ land drone
 ## 状态估计
 ### 悬停油门估计
 
-若cmd_out_level设置为`ATTI`或`RATE`是，ctl_bridge需要完成油门估计的任务。
+若cmd_out_level设置为`ATTI`或`RATE`时，ctl_bridge需要完成悬停油门估计的任务。
 > 油门的估计依赖于
-> - 归一化油门的z轴方向分量
-> - Z轴方向的加速度
+> - 归一化油门的world坐标系下z轴方向分量
+> - world坐标系下Z轴方向的加速度
 
 悬停油门估计使用了单变量EKF, $a_z^{meas}$是世界坐标系下测量的z轴加速度，$u_{hover}$ 是悬停油门(0~1)u是归一化油门，$g$是重力加速度，测量方程为
 $$
