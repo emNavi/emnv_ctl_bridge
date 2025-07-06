@@ -203,12 +203,10 @@ class Connect2X:
 
 if __name__ == "__main__":
     rospy.init_node('discover_client_node')
-
-    config_file = "/media/hao/WorkSpace1/ctrl_bridge_ws/src/emnv_ctl_bridge/config/share_topic.yaml"  # 替换为实际的配置文件路径
-
+    config_file = rospy.get_param('~config_file', "")
+    if(config_file == ""):
+        exit("Please set the config_file parameter in the launch file.")
     connectx = Connect2X(config_file)
     # Discover devices and connect to them
     print("ConnectX initialized and ready.")
-    while not rospy.is_shutdown():
-        # 这里可以添加其他逻辑或等待
-        time.sleep(1)  # 等待一段时间以确保连接建立
+    rospy.spin()
