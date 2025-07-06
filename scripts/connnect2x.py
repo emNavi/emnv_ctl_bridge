@@ -69,11 +69,12 @@ class Connect2X:
         self.context = zmq.Context()
         # Publisher socket
         self.pub_socket = self.context.socket(zmq.PUB)
-        self.pub_socket.bind(f"tcp://*:{pub_port}")
+        self.pub_socket.bind(f"tcp://{self.ip_addr}:{pub_port}")
         t = threading.Thread(target=self._zmq_send_thread, daemon=True)
         t.start()
         
     def _add_zmq_subscriber(self, sub_ip ,sub_port):
+        print(f"Connecting to device at {sub_ip}:{sub_port}")
         sub_socket = self.context.socket(zmq.SUB)
         sub_socket.connect(f"tcp://{sub_ip}:{sub_port}")
         for topic, msg_info in self.topics_dict.items():
@@ -178,8 +179,8 @@ class Connect2X:
                     if ',' in msg:
                         ip, port = msg.split(',', 1)
                         if(ip != self.ip_addr):
-                            print(f"Discovered device IP: {ip}, Port: {port}")
-                            if ip not in self.partner_ips:
+                            if ip not in self.partner_ips and ip!= self.ip_addr:
+                                print(f"Discovered new device IP: {ip}, Port: {port}")
                                 self.partner_ips.append(ip)
                                 self._add_zmq_subscriber(ip, int(port))
                 except socket.timeout:
@@ -189,14 +190,6 @@ class Connect2X:
                     continue
 
         threading.Thread(target=discover_loop, daemon=True).start()
-    def add_zmq_devizes(self,ip):
-        """Connect to discovered devices using ZMQ."""
-        print(f"Connecting to device at {ip}:{self.sub_port}")
-        sub_socket = self.context.socket(zmq.SUB)
-        sub_socket.connect(f"tcp://{ip}:{self.sub_port}")
-        for topic in self.topics_dict.keys():
-            sub_socket.setsockopt_string(zmq.SUBSCRIBE, topic)
-        self.sub_sockets.append(sub_socket)
 
 
 
