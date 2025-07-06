@@ -98,8 +98,12 @@ class Connect2X:
                 return
             topic = frames[0].decode('utf-8')
             raw_msg = frames[1]
-            if topic not in self.topics_dict:
-                rospy.logwarn(f"Received message for unknown topic: {topic}")
+            # 去掉可能存在的 /conn2x 前缀
+            topic_key = topic
+            if topic_key.startswith("/conn2x"):
+                topic_key = topic_key[len("/conn2x"):]
+            if topic_key not in self.topics_dict:
+                rospy.logwarn(f"Received message for unknown topic: {topic_key}")
                 return
             msg_class = self.topic_to_class[topic]
             msg_instance = msg_class()
