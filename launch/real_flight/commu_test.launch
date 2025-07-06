@@ -1,0 +1,6 @@
+<launch>
+    <node name = "connnect2x_node" pkg = "emnv_ctl_bridge" type = "connnect2x.py" output = "screen" required="true">
+        <param name ="config_path" value="$(find emnv_ctl_bridge)/config/share_topic.yaml"/>
+
+    </node> 
+</launch>
