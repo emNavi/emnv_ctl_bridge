@@ -12,9 +12,6 @@ import random
 import queue
 from tabulate import tabulate
 
-# discover port 
-# 224.0.0.1  32946
-# zmq pub port 32945
 
 
 class Connect2X:
@@ -165,8 +162,8 @@ class Connect2X:
     def _boardcast_self(self):
         print(f"IP address for {self.netcard_name}: {self.ip_addr}")
         def udp_broadcast():
-            udp_port = 50000  # 可根据需要修改端口
-            message = f"{self.ip_addr},{self.pub_port}".encode('utf-8')
+            udp_port = self.discover_port  # 可根据需要修改端口
+            message = f"conn2x_discover,{self.ip_addr},{self.pub_port}".encode('utf-8')
             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             while True:
@@ -177,7 +174,7 @@ class Connect2X:
     def _find_device(self):
         """Continuously discover devices on the network in a background thread."""
         def discover_loop():
-            udp_port = 50000  # 与广播端口保持一致
+            udp_port = self.discover_port  # 与广播端口保持一致
             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             udp_socket.bind(('', udp_port))
@@ -188,10 +185,11 @@ class Connect2X:
                     data, addr = udp_socket.recvfrom(1024)
                     msg = data.decode('utf-8')
                     # 兼容原有格式和新格式
-                    if ',' in msg:
-                        ip, port = msg.split(',', 1)
-                        if(ip != self.ip_addr):
-                            if ip not in self.partner_ips and ip!= self.ip_addr:
+                    if msg.startswith("conn2x_discover,"):
+                        parts = msg.strip().split(',')
+                        if len(parts) == 3:
+                            _, ip, port = parts
+                            if ip != self.ip_addr and ip not in self.partner_ips:
                                 print(f"Discovered new device IP: {ip}, Port: {port}")
                                 self.partner_ips.append(ip)
                                 self._add_zmq_subscriber(ip, int(port))
