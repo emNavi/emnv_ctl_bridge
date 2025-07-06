@@ -107,7 +107,7 @@ class Connect2X:
                 return
             msg_class = self.topic_to_class[topic_key]
             msg_instance = msg_class()
-            print(f"Deserializing with class: {msg_class.__name__}")
+            # print(f"Deserializing with class: {msg_class.__name__}")
             msg_instance.deserialize(raw_msg)
             self.ros_publishers[topic_key].publish(msg_instance)
     def _zmq_send_thread(self):
