@@ -105,7 +105,7 @@ class Connect2X:
             if topic_key not in self.topics_dict:
                 rospy.logwarn(f"Received message for unknown topic: {topic_key}")
                 return
-            msg_class = self.topic_to_class[topic]
+            msg_class = self.topic_to_class[topic_key]
             msg_instance = msg_class()
             print(f"Deserializing with class: {msg_class.__name__}")
             msg_instance.deserialize(raw_msg)
