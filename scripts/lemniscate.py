@@ -3,7 +3,9 @@
 import numpy as np
 from emnv_ctl_bridge.msg import PvayCommand
 from geometry_msgs.msg import Point, Vector3
-
+import time
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
 import rospy
 from std_msgs.msg import String
 class Lemniscate3D:
@@ -65,15 +67,31 @@ class Lemniscate3D:
         }
 
         return result
-import time
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
+
+def get_yaw_from_points(point, next_point,last_yaw):
+    """计算yaw角度"""
+    if not (isinstance(point, (list, np.ndarray)) and isinstance(next_point, (list, np.ndarray))):
+        raise ValueError("Both point and next_point must be list or numpy array of length 3.")
+    if len(point) != 3 or len(next_point) != 3:
+        raise ValueError("Both point and next_point must have length 3.")
+    yaw_vector = np.array(next_point) - np.array(point)
+    vector_length = np.linalg.norm(yaw_vector[:2])
+    if vector_length >= 0.1:
+        return np.arctan2(yaw_vector[1], yaw_vector[0])
+    return last_yaw
+
 if __name__ == "__main__":
     rospy.init_node("lemniscate_publisher")
 
-    dt = 0.01
+    a = rospy.get_param("~a", 3.0)  # XY平面形状控制参数
+    z_range = rospy.get_param("~z_range", 1.0)  # Z轴振幅
+    z_base_h = rospy.get_param("~z_base_h", 1.5)  # Z轴基准高度
+    t_max = rospy.get_param("~t_max", 160 * np.pi)  # 最大时间
+    dt = rospy.get_param("~dt", 0.01)
+    just_view = rospy.get_param("~just_view", False)
 
-    lem = Lemniscate3D(a=3.0, z_range=1,z_base_h = 2.5 , t_max=160 * np.pi, dt=dt)
+    lem = Lemniscate3D(a=a, z_range=z_range,z_base_h = z_base_h , t_max=t_max, dt=dt)
+
     ready2publish =False
     pub_point = rospy.Publisher("lemniscate_point", PvayCommand, queue_size=10)
     path_pub = rospy.Publisher("lemniscate_path", Path, queue_size=1, latch=True)
@@ -94,66 +112,45 @@ if __name__ == "__main__":
     path_msg = Path()
     path_msg.header.stamp = rospy.Time.now()
     path_msg.header.frame_id = "world"
-    # 引导到第一个点上
-    while not rospy.is_shutdown() and current_time < 4:
-        point = lem.get_point(0.0)
-        if point is not None:
-            # print(f"t={point['t']:.2f}, pos={point['position']}, vel={point['velocity']}, acc={point['acceleration']}")
+
+    point = lem.get_point(0.0)
+    point_next = lem.get_point(0.0 + dt)
+
+
+
+    guide_time = 4.0  # 引导时间
+    if point is None:
+        rospy.logwarn("No points available in the lemniscate trajectory.")
+        rospy.signal_shutdown("No points available in the lemniscate trajectory.")
+    for i in range(0, int(guide_time / dt)):
+        yaw = get_yaw_from_points(point['position'], point_next['position'],lem.last_yaw)
+        if(just_view == False):
             l_cmd = PvayCommand()
             l_cmd.header.stamp = rospy.Time.now()
             l_cmd.header.frame_id = "world"
             l_cmd.position = Point(*point['position'])
             l_cmd.velocity = Vector3(0.0, 0.0, 0.0)  # 初始速度为0
             l_cmd.acceleration = Vector3(0.0, 0.0, 0.0)  # 初始加速度为0
-            # 计算下一个采样点用于yaw
-            next_point = lem.get_point(0.0 + 0.3)
-            yaw = lem.last_yaw
-            if next_point is not None:
-                yaw_vector = np.array(next_point['position']) - np.array(point['position'])
-                vector_length = np.linalg.norm(yaw_vector[:2])
-                if vector_length >= 0.1:
-                    yaw = np.arctan2(yaw_vector[1], yaw_vector[0])
-
             l_cmd.yaw = yaw
             pub_point.publish(l_cmd)
-            # 发布路径消息
-
-
-            pose = PoseStamped()
-            pose.header.stamp = rospy.Time.now()
-            pose.header.frame_id = "world"
-            pose.pose.position = Point(*point['position'])
-            path_msg.poses.append(pose)
-            if len(path_msg.poses) > 100* 2:  # 限制路径长度
-                path_msg.poses.pop(0)
-            path_pub.publish(path_msg)
-        rospy.sleep(dt)
-        current_time = current_time + dt
+            rospy.sleep(dt)
+    # 正式发布
     current_time = 0.0
     while not rospy.is_shutdown():
         point = lem.get_point(current_time)
         if point is not None:
-            # print(f"t={point['t']:.2f}, pos={point['position']}, vel={point['velocity']}, acc={point['acceleration']}")
-            l_cmd = PvayCommand()
-            l_cmd.header.stamp = rospy.Time.now()
-            l_cmd.header.frame_id = "world"
-            l_cmd.position = Point(*point['position'])
-            l_cmd.velocity = Vector3(*point['velocity'])
-            l_cmd.acceleration = Vector3(*point['acceleration'])
-            # 计算下一个采样点用于yaw
             next_point = lem.get_point(current_time + 0.3)
-            yaw = lem.last_yaw
-            if next_point is not None:
-                yaw_vector = np.array(next_point['position']) - np.array(point['position'])
-                vector_length = np.linalg.norm(yaw_vector[:2])
-                if vector_length >= 0.1:
-                    yaw = np.arctan2(yaw_vector[1], yaw_vector[0])
-
-            l_cmd.yaw = yaw
-            pub_point.publish(l_cmd)
+            yaw = get_yaw_from_points(point['position'], next_point['position'],lem.last_yaw)
+            if(just_view == False):
+                l_cmd = PvayCommand()
+                l_cmd.header.stamp = rospy.Time.now()
+                l_cmd.header.frame_id = "world"
+                l_cmd.position = Point(*point['position'])
+                l_cmd.velocity = Vector3(*point['velocity'])
+                l_cmd.acceleration = Vector3(*point['acceleration'])
+                l_cmd.yaw = yaw
+                pub_point.publish(l_cmd)
             # 发布路径消息
-
-
             pose = PoseStamped()
             pose.header.stamp = rospy.Time.now()
             pose.header.frame_id = "world"

@@ -95,18 +95,7 @@ inline void LinearControl::set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_g
     std::cout << "V: " << _gain_v.transpose() << std::endl;
     std::cout << "A: " << _gain_a.transpose() << std::endl;
 }
-// inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Vector4d q, double dt)
-// {
-//     _vel_world = vel;
-//     _pos_world = pos;
-//     _q_world.w() = q(0);
-//     _q_world.x() = q(1);
-//     _q_world.y() = q(2);
-//     _q_world.z() = q(3);
-//     _angular_vel_world = angular_velocity;
 
-
-// }
 inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q)
 {
     _vel_world = vel;

@@ -406,7 +406,19 @@ void MavrosUtils::ctrl_loop()
             else if(ctrl_level == CmdPubType::POSY)
             {
                 // TODO 平滑
-                ctrl_cmd_.position = des_takeoff_pos;
+                double takeoff_vel = 0.5; // m/s
+
+                Eigen::Vector3d direction = des_takeoff_pos - ctrl_cmd_.position;
+                double dist = direction.norm();
+                if (dist > 1e-6) {
+                    direction.normalize();
+                    double step = takeoff_vel * 0.01; // 0.01为dt
+                    if (dist > step) {
+                        ctrl_cmd_.position += direction * step;
+                    } else {
+                        ctrl_cmd_.position = des_takeoff_pos;
+                    }
+                }
                 ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
                 ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
                 ctrl_cmd_.yaw = context_.last_state_yaw;

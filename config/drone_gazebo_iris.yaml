@@ -14,6 +14,6 @@ hover_thrust_ekf:
   process_noise: 0.04
 atti_controller:
   gain:
-    Kx: 1.5
-    Ky: 1.5
-    Kz: 1.5
+    Kx: 8
+    Ky: 8
+    Kz: 8
