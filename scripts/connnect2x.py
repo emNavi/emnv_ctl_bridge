@@ -80,7 +80,11 @@ class Connect2X:
         for topic, msg_info in self.topics_dict.items():
             if(msg_info["zmq_sub"] == False):
                 continue
-            sub_socket.setsockopt_string(zmq.SUBSCRIBE, topic)
+            if(msg_info["zmq_pub"] == True):
+                sub_socket.setsockopt_string(zmq.SUBSCRIBE, "/conn2x" + topic) # share topic 添加 /conn2x 前缀
+            else:
+                sub_socket.setsockopt_string(zmq.SUBSCRIBE, topic)
+
             print(f"Subscribed to topic: {topic}")
         self.sub_sockets.append(sub_socket)
         t = threading.Thread(target=self._zmq_receive, args=(sub_socket,), daemon=True)
@@ -131,14 +135,18 @@ class Connect2X:
                 return callback
             if(msg_type["zmq_pub"] == True):
                 if(msg_type["zmq_sub"] == True):
-                    rospy.Subscriber(topic, self.topic_to_class[topic], callback_factory(topic))
+                    rospy.Subscriber(topic, self.topic_to_class[topic], callback_factory("/conn2x"+topic))
                 else:
                     rospy.Subscriber(topic, self.topic_to_class[topic], callback_factory(self.zmq_pub_only_topic_prefix+topic), queue_size=10)
             if not hasattr(self, 'ros_publishers'):
                 self.ros_publishers = {}
             if(msg_type["zmq_sub"] == True):
-                if topic not in self.ros_publishers:
-                    self.ros_publishers[topic] = rospy.Publisher(topic, self.topic_to_class[topic], queue_size=10)
+                if(msg_type["zmq_pub"] == True):
+                    if topic not in self.ros_publishers:
+                        self.ros_publishers[topic] = rospy.Publisher("/conn2x"+topic, self.topic_to_class[topic], queue_size=10)
+                else:
+                    if topic not in self.ros_publishers:
+                        self.ros_publishers[topic] = rospy.Publisher(topic, self.topic_to_class[topic], queue_size=10)
 
     def get_netcard_ip(self,ifname):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
