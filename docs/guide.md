@@ -1,4 +1,17 @@
-# 使用说明
+# 使用细节说明
+
+
+## 状态机
+ctrl_bridge 提供了一个上层状态机，状态会发送到`/ctrl_bridge/bridge_status`话题下。
+降落后状态机重置，状态回到IDLE 等待下一次起飞。
+> 一些里程计如vins在飞行一轮后，不再具备起飞条件，需要重启里程计
+
+
+## 设置odom信息
+
+通过在launch文件中修改 ref_odom 可以使用
+- VIO，LIO的里程计信息
+- /mavros/local_position/odom
 
 ## 控制
 
@@ -54,8 +67,37 @@ source devel/setup.bash
 takeoff drone
 land drone
 # "drone" 是一个参数（drone_name），在launch文件中配置
+# 你也可以一次起飞或降落多个飞机
+takeoff drone1,drone2
+land drone1,drone2
 ```
-> 在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)
+<style>
+.info {
+  border-left: 4px solidrgb(18, 134, 230);
+  background:rgba(170, 209, 236, 0.6);
+  padding: 10px;
+  margin: 10px 0;
+  color: rgb(45, 45, 46);
+  border-radius: 8px;
+}
+
+.warning {
+  border-left: 4px solid #ff9800;
+  background: #fff3e0;
+  padding: 10px;
+  margin: 10px 0;
+}
+</style>
+
+<div class="info">
+  <strong style="margin: 7px;">ℹ️</strong>
+  <ul style="margin-left: 5px;">
+  <li>在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)</li>
+  <li>起飞与降落指令互斥，即仅以最后收到的指令类型为准</li>
+  <li> 起飞过程能被降落直接打断</li>
+  </ul>
+</div>
+
 
 ## 状态估计
 ### 悬停油门估计
@@ -89,10 +131,24 @@ hover_thrust_ekf:
 
 > 参考:px4悬停油门估计
 
+<!-- 
+## 遥控器控制
+### 遥控器强制降落
+TODO
+- 可以设置一个拨杆用于切换 程序控制和遥控器控制，我们默认你有一个拨杆被设置成了cmd_valid 开关，若状态估计正常，你可以使用开关强制切换成降落模式。 -->
 
 
 
 ## 多机部署
-#### 关于group
 
-为了方便仿真时多机使用，ctrl_bridge 视频了 group ，mavutils订阅的mavros话题均会自动加入group前缀
+针对仿真时多机使用，ctrl_bridge适配了`<group>` ，mavutils订阅的mavros话题均会自动加入group前缀
+
+
+## 轨迹生成模块
+### 五次多项式轨迹
+可以生成五次多项式轨迹方便快速测试控制效果。需要注意的是
+- 轨迹不具备避障功能
+- 轨迹不考虑实际场地约束，即生成轨迹形状仅依赖关键点和执行时间设置
+- 更多使用请参考[轨迹生成模块](./docs/ploy_traj.md)
+### lemniscate
+生成8字轨迹
