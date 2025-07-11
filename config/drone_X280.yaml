@@ -1,0 +1,19 @@
+linear_controller:
+  gain:
+    Kpxy: 1.5
+    Kpz: 1.5
+    Kvxy: 1.5
+    Kvz: 1.5
+    Kaxy: 0.5
+    Kaz: 0.5
+  max_tile_deg: 30 # deg
+hover_thrust_ekf:
+  init_hover_thrust: 0.1 # 不确定请设置为0.1
+  hover_thrust_max: 0.8
+  hover_thrust_noise: 0.1
+  process_noise: 0.04 #
+atti_controller:
+  gain:
+    Kx: 1.5
+    Ky: 1.5
+    Kz: 1.5

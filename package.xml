@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>ctrl_bridge</name>
+  <name>emnv_ctl_bridge</name>
   <version>0.0.0</version>
-  <description>The offb_pkg package</description>
+  <description>The Bridge</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -54,16 +54,21 @@
   <build_depend>mavros_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>std_msgs</build_depend>
-  <build_export_depend>geometry_msgs</build_export_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_export_depend>message_generation</build_export_depend>
+
+  <!-- <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>mavros_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>mavros_msgs</exec_depend>
   <exec_depend>roscpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend> -->
 
-  <build_depend>map_operation_pkg</build_depend>
+
+  <!-- <build_depend>map_operation_pkg</build_depend>
   <exec_depend>map_operation_pkg</exec_depend>
   <build_depend>path_searching_pkg</build_depend>
   <exec_depend>path_searching_pkg</exec_depend>
@@ -74,7 +79,7 @@
   <build_depend>regular_motion</build_depend>
   <exec_depend>regular_motion</exec_depend>
   <build_depend>sensor_msgs</build_depend>
-  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend> -->
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

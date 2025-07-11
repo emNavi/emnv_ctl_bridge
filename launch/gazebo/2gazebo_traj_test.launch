@@ -1,0 +1,81 @@
+<launch>
+    <arg name = "drone_name" default = "iris"/>
+    <arg name = "takeoff_height" default = "1.1"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    
+
+
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <node name = "ctrl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+        <remap from="~pos_sp_cmd" to="/traj_test/cmd"/>
+        <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
+        
+        <remap from="~ref_odom" to="/mavros/local_position/odom"/>
+        <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
+        <param name ="enable_vel_transpose_b2w" value="true"/>
+        <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
+
+        <param name ="drone_name" value="$(arg drone_name)"/>
+        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+
+    </node> 
+    <node name = "traj_test" pkg = "emnv_ctl_bridge" type = "traj_test" output = "screen"  required="false">
+        <remap from="~bridge_status" to="/ctrl_bridge/bridge_status"/>
+
+        <param name ="pub_cmd_flag" value="true"/>
+        <!-- <param name ="pub_cmd_flag" value="false"/> -->
+
+        <param name ="key_point_num" value="4"/>
+        <!--  key_point_num > 3  -->
+        <!-- key_point_0 为 起始坐标 -->
+
+        <param name ="key_point_0_x" value="0.0"/>
+        <param name ="key_point_0_y" value="0.0"/>
+        <param name ="key_point_0_z" value="1.0"/>
+        <param name ="key_point_1_x" value="5.0"/>
+        <param name ="key_point_1_y" value="2.0"/>
+        <param name ="key_point_1_z" value="1.0"/>
+        <param name ="key_point_2_x" value="10.0"/>
+        <param name ="key_point_2_y" value="-2.0"/>
+        <param name ="key_point_2_z" value="1.0"/>
+        <param name ="key_point_3_x" value="0.0"/>
+        <param name ="key_point_3_y" value="0.0"/>
+        <param name ="key_point_3_z" value="1.0"/>
+
+        <!--  segment_time 数量为key_point_num-1 ，单位是 second -->
+        <param name ="segment_time_0" value="4.0"/>
+        <param name ="segment_time_1" value="5.0"/>
+        <param name ="segment_time_2" value="4.0"/>
+
+        <param name ="start_vel_x" value="0.0"/>
+        <param name ="start_vel_y" value="0.0"/>
+        <param name ="start_vel_z" value="0.0"/>
+
+        <param name ="end_vel_x" value="0.0"/>
+        <param name ="end_vel_y" value="0.0"/>
+        <param name ="end_vel_z" value="0.0"/>
+
+        <param name ="start_acc_x" value="0.0"/>
+        <param name ="start_acc_y" value="0.0"/>
+        <param name ="start_acc_z" value="0.0"/>
+
+        <param name ="end_acc_x" value="0.0"/>
+        <param name ="end_acc_y" value="0.0"/>
+        <param name ="end_acc_z" value="0.0"/>
+
+
+    </node> 
+
+
+    <!-- 不要使用GSC_URL -->
+    <!-- v1.13.3 版本对应的 gazebo 有问题，无法起飞 -->
+        <include file="$(find mavros)/launch/px4.launch" >
+            <arg name="fcu_url" value="udp://:14540@127.0.0.1:1857"/>
+            <arg name="log_output" value="log"/>
+        </include>
+</launch>
