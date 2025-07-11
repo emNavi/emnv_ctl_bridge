@@ -30,7 +30,7 @@ CtrlMode getCtrlMode(const std::string& key) {
 MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
 {
     nh = _nh;
-
+    enable_imu_dt_check_f = params_parse.enable_imu_dt_check; 
     // 设置模式，订阅对应控制指令
     if (set_bridge_mode(params_parse.ctrl_mode, params_parse.ctrl_pub_level) < 0)
     {
@@ -78,7 +78,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     // sub mavros states
     state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
     // Note: do NOT change it to /mavros/imu/data_raw !!!
-    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>(params_parse.ros_namespace + "/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
+    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
     // 注意不要用 target_attitude ,里面的油门可能不正确
     atti_target_sub_ = _nh.subscribe<mavros_msgs::AttitudeTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mavAttiTargetCallback, this);
 
@@ -96,7 +96,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     // pub hover thrust
     hover_thrust_pub_ = _nh.advertise<std_msgs::Float64>("hover_thrust", 10);
 
-    fsm.Init_FSM();
+    fsm.Init_FSM(params_parse.enable_odom_timeout_check);
 }
 MavrosUtils::~MavrosUtils()
 {
@@ -438,7 +438,8 @@ void MavrosUtils::ctrl_loop()
                 lin_controller.setCtrlMask(LinearControl::CTRL_MASK::POSI | LinearControl::CTRL_MASK::VEL | LinearControl::CTRL_MASK::ACC);
                 context_.last_state_position = odometry_.position;
                 context_.last_state_attitude = odometry_.attitude;
-                context_.last_state_yaw = MyMath::fromQuaternion2yaw(odometry_.attitude); // 获取当前的yaw角
+                // context_.last_state_yaw = MyMath::fromQuaternion2yaw(odometry_.attitude); // 获取当前的yaw角
+                context_.last_state_yaw = 0 ;
             }
             double hover_vel_ctrl_gain;
             if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
@@ -657,11 +658,16 @@ void MavrosUtils::mavStateCallback(const mavros_msgs::State::ConstPtr &msg)
 void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
 {
     Eigen::Vector3d base_link_acc = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
+    odometry_.imu_attitude.x() = msg->orientation.x;
+    odometry_.imu_attitude.y() = msg->orientation.y;
+    odometry_.imu_attitude.z() = msg->orientation.z;
+    odometry_.imu_attitude.w() = msg->orientation.w;
+    
     odometry_.acc = odometry_.attitude * base_link_acc; //
-
+    
     double dt = (msg->header.stamp - context_.last_recv_odom_time).toSec();
     context_.last_recv_odom_time = msg->header.stamp;
-    if (dt > 0.1)
+    if (dt > 0.1 && enable_imu_dt_check_f)
     {
         ROS_WARN("IMU dt is too large");
         return;
@@ -673,8 +679,6 @@ void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
         _hover_thrust = hover_thrust_ekf_->getHoverThrust();
     }
     // hover_thrust_ekf_->printLog();
-
-
     std_msgs::Float64 hover_thrust_msg;
     hover_thrust_msg.data = _hover_thrust;
     hover_thrust_pub_.publish(hover_thrust_msg);
@@ -693,8 +697,8 @@ void MavrosUtils::mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     odometry_.attitude.w() = msg->pose.pose.orientation.w;
 
     odometry_.velocity = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
-    ROS_INFO("gogogo");
-    lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude);
+    // ROS_INFO("gogogo");
+    lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude,odometry_.imu_attitude);
 }
 void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
@@ -709,7 +713,7 @@ void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 
     Eigen::Vector3d base_link_vel = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
     odometry_.velocity = odometry_.attitude * base_link_vel; // body frame to world frame
-    lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude);
+    lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude,odometry_.imu_attitude);
 
     nav_msgs::Odometry world_odom;
     world_odom.header.stamp = msg->header.stamp;

@@ -23,7 +23,7 @@ private:
     Eigen::Vector3d _vel_world;
     Eigen::Quaterniond _q_world;
     Eigen::Vector3d _angular_vel_world;
-
+    Eigen::Quaterniond _q_imu_world;
 
     Eigen::Vector3d _des_vel;
     Eigen::Vector3d _vel_error;
@@ -63,7 +63,7 @@ public:
     void smooth_move_init();
     void smooth_move(Eigen::Vector3d &des_position, double target_vel, double des_yaw, double dt);
     
-    void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q);
+    void set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q,Eigen::Quaterniond q_imu);
     Eigen::Quaterniond q_exp;
     double thrust_exp;
     void set_hover_thrust(double t)
@@ -96,13 +96,13 @@ inline void LinearControl::set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_g
     std::cout << "A: " << _gain_a.transpose() << std::endl;
 }
 
-inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q)
+inline void LinearControl::set_status(Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Vector3d angular_velocity, Eigen::Quaterniond q,Eigen::Quaterniond q_imu)
 {
     _vel_world = vel;
     _pos_world = pos;
     _q_world = q;
     _angular_vel_world = angular_velocity;
-
+    _q_imu_world = q_imu;
  
 
 }
@@ -166,9 +166,16 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     if (std::abs(pitch) > _max_tile_rad) {
         pitch = (pitch > 0 ? 1 : -1) * _max_tile_rad;
     }
+
     q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
      Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
      Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+
+    Eigen::Quaterniond q_exp_w;
+    q_exp_w = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
+     Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
+     Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    q_exp =   _q_imu_world * _q_world.inverse() *q_exp_w;
 }
 inline void LinearControl::smooth_move_init()
 {

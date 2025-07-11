@@ -61,7 +61,7 @@ rostopic pub /traj_test/cmd emnv_ctl_bridge/PvayCommand "header:
   seq: 0
   stamp: {secs: 0, nsecs: 0}
   frame_id: ''
-position: {x: 0.0, y: 0.0, z: 1.0}
+position: {x: 1.0, y: 1.0, z: 1.0}
 velocity: {x: 0.0, y: 0.0, z: 0.0}
 acceleration: {x: 0.0, y: 0.0, z: 0.0}
 yaw: 1.6

@@ -37,6 +37,8 @@ int main(int argc, char **argv)
     nh.param<std::string>("drone_name", params_parse.name, "drone");
 
     nh.param<bool>("enable_vel_transpose_b2w", params_parse.enable_vel_transpose_b2w, false);
+    nh.param<bool>("enable_imu_dt_check", params_parse.enable_imu_dt_check, true);
+    nh.param<bool>("enable_odom_timeout_check", params_parse.enable_odom_timeout_check, true);
 
     nh.param<std::string>("drone_config_path", params_parse.drone_config_path, "");
 
