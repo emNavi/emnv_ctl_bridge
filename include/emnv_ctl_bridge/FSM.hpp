@@ -68,11 +68,12 @@ public:
         }
     }
 
-    void Init_FSM()
+    void Init_FSM(bool _enable_odom_timeout_check)
     {
         now_state = IDLE;
         last_state = IDLE;
         resetFlags();
+        enable_odom_timeout_check = _enable_odom_timeout_check;
 #define TIME_OFFSET_SEC 1000
         last_recv_pva_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
         last_try_offboard_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
@@ -184,6 +185,8 @@ public:
         }
     }
     bool isOdomTimeout(){
+        if(enable_odom_timeout_check == false)  
+            return false;
         if (ros::Time::now() - last_recv_odom_time > ros::Duration(0.3))
         {
             double timeout_sec = (ros::Time::now() - last_recv_odom_time).toSec();
@@ -225,7 +228,7 @@ public:
 
 private:
     ros::Time last_recv_pva_time;
-
+    bool enable_odom_timeout_check;
     // add takeoff cmd recv flag;
 };
 

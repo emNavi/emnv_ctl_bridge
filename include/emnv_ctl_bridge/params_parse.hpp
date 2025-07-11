@@ -12,6 +12,8 @@ struct ParamsParse
     double loop_rate;
     std::string name;
     bool enable_vel_transpose_b2w = false; // 是否启用机体坐标系到世界坐标系的速度转换
+    bool enable_imu_dt_check = true;
+    bool enable_odom_timeout_check = true;
 };
 
 #endif

@@ -106,6 +106,7 @@ public:
         Eigen::Quaterniond attitude;
         Eigen::Vector3d rate;
         Eigen::Vector3d acc;
+        Eigen::Quaterniond imu_attitude;
     };
 
 
@@ -137,6 +138,7 @@ private:
     HoverThrustEkf *hover_thrust_ekf_;
     double _hover_thrust=0.3;
     Px4AttitudeController atti_controller_;
+    bool enable_imu_dt_check_f;
 
 public:
     MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse);
