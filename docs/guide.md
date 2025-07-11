@@ -71,32 +71,12 @@ land drone
 takeoff drone1,drone2
 land drone1,drone2
 ```
-<style>
-.info {
-  border-left: 4px solidrgb(18, 134, 230);
-  background:rgba(170, 209, 236, 0.6);
-  padding: 10px;
-  margin: 10px 0;
-  color: rgb(45, 45, 46);
-  border-radius: 8px;
-}
 
-.warning {
-  border-left: 4px solid #ff9800;
-  background: #fff3e0;
-  padding: 10px;
-  margin: 10px 0;
-}
-</style>
+起飞降落阶段具有以下特性
+> 1. 在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)
+> 2. 起飞与降落指令互斥，即仅以最后收到的指令类型为准
+> 3. 起飞过程能被降落直接打断
 
-<div class="info">
-  <strong style="margin: 7px;">ℹ️</strong>
-  <ul style="margin-left: 5px;">
-  <li>在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)</li>
-  <li>起飞与降落指令互斥，即仅以最后收到的指令类型为准</li>
-  <li> 起飞过程能被降落直接打断</li>
-  </ul>
-</div>
 
 
 ## 状态估计
