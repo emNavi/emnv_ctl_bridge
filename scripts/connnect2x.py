@@ -11,6 +11,7 @@ import struct
 import random
 import queue
 from tabulate import tabulate
+import hashlib
 
 
 
@@ -21,6 +22,7 @@ class Connect2X:
         self.partner_ips = []  # 存储已发现设备的IP地址
         self.sub_sockets = []
         self.msg_queue = queue.Queue()
+        self.md5_time_queue = queue.Queue()
         self._init_zmq_publisher(self.pub_port)
         self._sub_ros_topic()
         # 开始搜索设备
@@ -89,6 +91,21 @@ class Connect2X:
         self.sub_sockets.append(sub_socket)
         t = threading.Thread(target=self._zmq_receive, args=(sub_socket,), daemon=True)
         t.start()
+    def _del_old_md5_time_queue(self):
+        """Clean up the md5_time_queue to remove old entries."""
+        now = time.time()
+        while not self.md5_time_queue.empty():
+            md5_item, t_item = self.md5_time_queue.queue[0]
+            if now - t_item > 3:
+                self.md5_time_queue.get()
+                continue
+            break
+    def _get_msg_md5(self, raw_msg):
+        """Calculate the MD5 hash of a message."""
+        if len(raw_msg) < 1024:
+            return hashlib.md5(raw_msg).hexdigest()
+        else:
+            return hashlib.md5(raw_msg[:1024]).hexdigest()
     def _zmq_receive(self,sub_socket):
         while True:
             frames = sub_socket.recv_multipart()
@@ -100,6 +117,13 @@ class Connect2X:
             topic = frames[0].decode('utf-8')
             if(self.packed_ip == frames[1]):
                 raw_msg = frames[2]
+                # 计算 MD5 值，不要太长，避免影响性能
+                if(len(raw_msg) < 1024):
+                    md5_hash = hashlib.md5(raw_msg).hexdigest()
+                else:
+                    md5_hash = hashlib.md5(raw_msg[:1024]).hexdigest()
+                self.md5_time_queue.put([md5_hash, time.time(), topic])
+                self._del_old_md5_time_queue()
                 # 去掉可能存在的 /conn2x 前缀
                 topic_key = topic
                 if topic_key.startswith("/conn2x"):
@@ -107,6 +131,7 @@ class Connect2X:
                 if topic_key not in self.topics_dict:
                     rospy.logwarn(f"Received message for unknown topic: {topic_key}")
                     return
+                
                 msg_class = self.topic_to_class[topic_key]
                 msg_instance = msg_class()
                 # print(f"Deserializing with class: {msg_class.__name__}")
@@ -123,6 +148,16 @@ class Connect2X:
         """Thread to send messages to ZMQ."""
         while not rospy.is_shutdown():
             topic, raw_msg = self.msg_queue.get()
+            md5_hash = self._get_msg_md5(raw_msg)
+            # 判断 md5 是否已存在于 md5_time_queue，且 topic 相同，若存在则跳过发送
+            skip_send = False
+            self._del_old_md5_time_queue()
+            for item in list(self.md5_time_queue.queue):
+                if md5_hash == item[0] and topic == item[2]:
+                    skip_send = True
+                    break
+            if skip_send:
+                continue
             self.pub_socket.send_multipart([topic.encode('utf-8'), self.packed_ip , raw_msg])
     def _sub_ros_topic(self):
         ''' 只需要一次，即订阅自己并转发'''
