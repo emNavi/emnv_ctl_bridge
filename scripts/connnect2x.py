@@ -60,7 +60,10 @@ class Connect2X:
         self.sub_port = topic_type_map.get('zmq_sub_port', 32945)
         self.discover_port = topic_type_map.get('discover_port', 32946)
         self.ip_addr = self.get_netcard_ip(self.netcard_name)
-
+        # 把字符串转成 4 字节
+        self.packed_ip = socket.inet_aton(self.ip_addr)
+        # unpack 成无符号 int
+        self.ip_int = struct.unpack("!I", self.packed_ip)[0]
     def _init_zmq_publisher(self, pub_port):
         """Initialize the ZMQ publisher."""
         self.context = zmq.Context()
@@ -89,29 +92,38 @@ class Connect2X:
     def _zmq_receive(self,sub_socket):
         while True:
             frames = sub_socket.recv_multipart()
-            if len(frames) != 2:
-                rospy.logwarn(f"Expected 2 frames, got {len(frames)} — discarding")
+            if len(frames) != 3:
+                rospy.logwarn(f"Expected 3 frames, got {len(frames)} — discarding")
                 print(f"Received frames: {frames}")
+                print(f"Maybe your conn2x is too old, please update it.")
                 return
             topic = frames[0].decode('utf-8')
-            raw_msg = frames[1]
-            # 去掉可能存在的 /conn2x 前缀
-            topic_key = topic
-            if topic_key.startswith("/conn2x"):
-                topic_key = topic_key[len("/conn2x"):]
-            if topic_key not in self.topics_dict:
-                rospy.logwarn(f"Received message for unknown topic: {topic_key}")
-                return
-            msg_class = self.topic_to_class[topic_key]
-            msg_instance = msg_class()
-            # print(f"Deserializing with class: {msg_class.__name__}")
-            msg_instance.deserialize(raw_msg)
-            self.ros_publishers[topic_key].publish(msg_instance)
+            if(self.packed_ip == frames[1]):
+                raw_msg = frames[2]
+                # 去掉可能存在的 /conn2x 前缀
+                topic_key = topic
+                if topic_key.startswith("/conn2x"):
+                    topic_key = topic_key[len("/conn2x"):]
+                if topic_key not in self.topics_dict:
+                    rospy.logwarn(f"Received message for unknown topic: {topic_key}")
+                    return
+                msg_class = self.topic_to_class[topic_key]
+                msg_instance = msg_class()
+                # print(f"Deserializing with class: {msg_class.__name__}")
+                msg_instance.deserialize(raw_msg)
+                self.ros_publishers[topic_key].publish(msg_instance)
+            else:
+                ip_str = socket.inet_ntoa(frames[1])
+                print(f"Received message for topic {topic} from {ip_str}, throw")
+                # print(f"Message content: {raw_msg}")
+                # print(f"Packed IP: {self.packed_ip}, Received IP: {frames[1]}")
+                # print(f"Topic: {topic}, Raw message length: {len(raw_msg)}")
+                pass
     def _zmq_send_thread(self):
         """Thread to send messages to ZMQ."""
         while not rospy.is_shutdown():
             topic, raw_msg = self.msg_queue.get()
-            self.pub_socket.send_multipart([topic.encode('utf-8'), raw_msg])
+            self.pub_socket.send_multipart([topic.encode('utf-8'), self.packed_ip , raw_msg])
     def _sub_ros_topic(self):
         ''' 只需要一次，即订阅自己并转发'''
         self.topic_to_class = {}
@@ -213,3 +225,11 @@ if __name__ == "__main__":
     # Discover devices and connect to them
     print("ConnectX initialized and ready.")
     rospy.spin()
+
+    # while True:
+    #     try:
+    #         time.sleep(1)
+    #         print("Connect2X is running...")
+    #     except KeyboardInterrupt:
+    #         print("Shutting down Connect2X...")
+    #         break

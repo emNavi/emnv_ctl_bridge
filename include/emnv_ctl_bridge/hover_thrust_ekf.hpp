@@ -24,7 +24,6 @@ private:
     float _dt{0.02f};
     float _acc_var{5.f}; ///< Acceleration variance (m^2/s^3)
 	float _acc_var_scale{1.f}; ///< Multiplicator of the measurement variance, used to decrease sensivity 
-    // 似乎是降低速度快慢的影响
 	float _gate_size{3.f};
 
 

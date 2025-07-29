@@ -92,6 +92,9 @@ $$
 a_z^{meas}  =  \frac{u}{u_{hover}}g+noise
 $$
 
+
+
+
 在代码中
 - 从`/mavros/imu/data`拿到的加速度的是baselink坐标系下的，通过坐标系转换获得世界坐标系下的z轴测量值。
 - u 使用进入混控器前的油门设定值
