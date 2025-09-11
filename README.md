@@ -15,14 +15,14 @@ TODO
 - 降落后状态机自动重置
 - 降落后可以进行再次起飞
 ## name自定义
-- 可以设置 drone_name
+- 可以设置 drone_id
 ## 快捷起飞降落指令
-可以使用 `takeoff drone_name` 实现起飞，例如
+可以使用 `takeoff drone_id` 实现起飞，例如
 ```bash
 takeoff drone1
 takeoff drone1,drone2
 ```
-也可以使用`land drone_name`实现降落
+也可以使用`land drone_id`实现降落
 
 - 起飞与降落指令互斥，即仅以最后收到的指令类型为准
 - 起飞过程能被降落直接打断

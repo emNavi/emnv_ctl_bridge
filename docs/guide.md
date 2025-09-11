@@ -53,7 +53,7 @@ ctl bridge 提供快速起飞与降落的功能
 source devel/setup.bash
 takeoff drone
 land drone
-# "drone" 是一个参数（drone_name），在launch文件中配置
+# "drone" 是一个参数（drone_id），在launch文件中配置
 ```
 > 在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)
 
@@ -95,4 +95,4 @@ hover_thrust_ekf:
 ## 多机部署
 #### 关于group
 
-为了方便仿真时多机使用，ctrl_bridge 视频了 group ，mavutils订阅的mavros话题均会自动加入group前缀
+为了方便仿真时多机使用，ctrl_bridge 适配了 group ，mavutils订阅的mavros话题均会自动加入group前缀

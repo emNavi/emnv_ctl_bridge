@@ -18,8 +18,8 @@ linear_controller:
     Kaz: 0.5
   max_tile_deg: 40 # deg
 hover_thrust_ekf:
-  init_hover_thrust: 0.3 # 不确定请设置为0.1
-  hover_thrust_max: 0.8
+  init_hover_thrust: 0.1 # X152b 4s 2300mah use 0.3
+  hover_thrust_max: 0.5
   hover_thrust_noise: 0.1
   process_noise: 0.04 #
 atti_controller:

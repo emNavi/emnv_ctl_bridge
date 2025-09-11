@@ -1,5 +1,5 @@
 <launch>
-    <arg name = "drone_name" default = "iris"/>
+    <arg name = "drone_id" default = "iris"/>
     <arg name = "takeoff_height" default = "1.5"/>
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_pub_level" default = "ATTI"/>
@@ -18,7 +18,7 @@
         <param name ="enable_vel_transpose_b2w" value="true"/>
         <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
 
-        <param name ="drone_name" value="$(arg drone_name)"/>
+        <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
         <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>

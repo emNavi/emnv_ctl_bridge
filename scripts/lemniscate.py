@@ -82,13 +82,19 @@ def get_yaw_from_points(point, next_point,last_yaw):
 
 if __name__ == "__main__":
     rospy.init_node("lemniscate_publisher")
-
-    a = rospy.get_param("~a", 3.0)  # XY平面形状控制参数
-    z_range = rospy.get_param("~z_range", 1.0)  # Z轴振幅
-    z_base_h = rospy.get_param("~z_base_h", 1.5)  # Z轴基准高度
+    rospy.loginfo("Lemniscate publisher node started.")
+    base_x = rospy.get_param("~base_x", 0.0)  # 中心点
+    base_y = rospy.get_param("~base_y", 0.0)  # 中心点
+    a = rospy.get_param("~a", 1.5)  # XY平面形状控制参数
+    z_range = rospy.get_param("~z_range", 0.1)  # Z轴振幅
+    z_base_h = rospy.get_param("~z_base_h", 0.5)  # Z轴基准高度
     t_max = rospy.get_param("~t_max", 160 * np.pi)  # 最大时间
     dt = rospy.get_param("~dt", 0.01)
     just_view = rospy.get_param("~just_view", False)
+    print(f"just_view: {just_view}")
+
+    base_xyz_list = [float(base_x), float(base_y), 0.0]
+    base_xyz = np.asarray(base_xyz_list, dtype=float)         # 强制转浮点
 
     lem = Lemniscate3D(a=a, z_range=z_range,z_base_h = z_base_h , t_max=t_max, dt=dt)
 
@@ -105,9 +111,10 @@ if __name__ == "__main__":
 
     sub_status = rospy.Subscriber("bridge_status", String, bridge_status_callback)
     while not rospy.is_shutdown():
-        if(ready2publish):
+        if(ready2publish or just_view == True):
             break
         time.sleep(1)  # 等待订阅器准备好
+    print("Start publishing lemniscate points.")
     current_time = 0.0
     path_msg = Path()
     path_msg.header.stamp = rospy.Time.now()
@@ -128,12 +135,13 @@ if __name__ == "__main__":
             l_cmd = PvayCommand()
             l_cmd.header.stamp = rospy.Time.now()
             l_cmd.header.frame_id = "world"
-            l_cmd.position = Point(*point['position'])
+            l_cmd.position = Point(*(point['position'] + base_xyz))
             l_cmd.velocity = Vector3(0.0, 0.0, 0.0)  # 初始速度为0
             l_cmd.acceleration = Vector3(0.0, 0.0, 0.0)  # 初始加速度为0
             l_cmd.yaw = yaw
             pub_point.publish(l_cmd)
             rospy.sleep(dt)
+    print("Lemniscate trajectory publishing started.")
     # 正式发布
     current_time = 0.0
     while not rospy.is_shutdown():
@@ -145,7 +153,7 @@ if __name__ == "__main__":
                 l_cmd = PvayCommand()
                 l_cmd.header.stamp = rospy.Time.now()
                 l_cmd.header.frame_id = "world"
-                l_cmd.position = Point(*point['position'])
+                l_cmd.position = Point(*(point['position'] + base_xyz))
                 l_cmd.velocity = Vector3(*point['velocity'])
                 l_cmd.acceleration = Vector3(*point['acceleration'])
                 l_cmd.yaw = yaw
@@ -154,7 +162,7 @@ if __name__ == "__main__":
             pose = PoseStamped()
             pose.header.stamp = rospy.Time.now()
             pose.header.frame_id = "world"
-            pose.pose.position = Point(*point['position'])
+            pose.pose.position = Point(*(point['position'] + base_xyz))
             path_msg.poses.append(pose)
             if len(path_msg.poses) > 100* 2:  # 限制路径长度
                 path_msg.poses.pop(0)

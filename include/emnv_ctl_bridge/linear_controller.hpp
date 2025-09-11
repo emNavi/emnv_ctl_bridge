@@ -17,6 +17,7 @@ private:
     Derivate velDerivateZ_;
 
     Eigen::Vector3d _gain_p,_gain_v,_gain_a;
+    Eigen::Vector3d _gain_v_extra,_gain_a_extra;
 
 
     Eigen::Vector3d _pos_world;
@@ -74,6 +75,16 @@ public:
     {
         ctrl_mask = mask;
     }
+    void setExtraGain(Eigen::Vector3d kv_extra, Eigen::Vector3d ka_extra)
+    {
+        _gain_v_extra = kv_extra;
+        _gain_a_extra = ka_extra;
+    }
+    void getExtraGain(Eigen::Vector3d &kv_extra, Eigen::Vector3d &ka_extra)
+    {
+        kv_extra = _gain_v_extra;
+        ka_extra = _gain_a_extra;
+    }
 
 };
 
@@ -83,6 +94,9 @@ inline LinearControl::LinearControl()
     _gain_p << 2,2,2;
     _gain_v << 2,2,2;
     _gain_a << 1.5,1.5,1.5;
+
+    _gain_v_extra << 0.0, 0.0, 0.0;
+    _gain_a_extra << 0.0, 0.0, 0.0;
     thrust_exp = 0.3;
 }
 inline void LinearControl::set_gains(Eigen::Vector3d p_gain, Eigen::Vector3d v_gain, Eigen::Vector3d a_gain)

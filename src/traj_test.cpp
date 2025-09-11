@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 
     for(int i = 0; i < key_point_num; i++)
     {
-        pose.header.frame_id = "world";
+        pose.header.frame_id = "uav_world";
         pose.header.stamp = ros::Time::now();
         pose.pose.position.x = key_pos(0,i);
         pose.pose.position.y = key_pos(1,i);
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
     ROS_INFO("Start to play trajectory");
     double last_yaw = 0;
     emnv_ctl_bridge::PvayCommand cmd;
-    cmd.header.frame_id = "world";
+    cmd.header.frame_id = "uav_world";
     double ts = 0.1; // time step for trajectory evaluation
     int index = 0;
     for (double t = 0; t < global_duration_; t += ts)
@@ -192,10 +192,10 @@ int main(int argc, char* argv[])
 
 
 
-        path.header.frame_id = "world";
+        path.header.frame_id = "uav_world";
         path.header.stamp = ros::Time::now();
         geometry_msgs::PoseStamped cur_pos;
-        cur_pos.header.frame_id = "world";
+        cur_pos.header.frame_id = "uav_world";
         cur_pos.header.stamp = ros::Time::now();
         cur_pos.header.seq = index;
         cur_pos.pose.position.x = pt(0);
