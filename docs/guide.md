@@ -132,3 +132,10 @@ TODO
 - 更多使用请参考[轨迹生成模块](./docs/ploy_traj.md)
 ### lemniscate
 生成8字轨迹
+
+
+
+
+## drone_id 的定义
+
+drone_id 是一个0~255的数字
