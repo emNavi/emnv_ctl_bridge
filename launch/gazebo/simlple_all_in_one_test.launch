@@ -4,7 +4,7 @@
     <!-- launches PX4 SITL, Gazebo environment, and spawns quadrotor -->
 
     <!-- gazebo configs -->
-    <arg name="world" default="$(find emnv_scene)/worlds/empty.world"/>
+    <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/empty.world"/>
     <arg name="gui" default="true"/>
     <arg name="debug" default="false"/>
     <arg name="verbose" default="false"/>
@@ -21,25 +21,32 @@
         <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
     </include>
 
-    <!-- PX4 SITL and vehicle spawn -->
-    <include file="$(find emnv_scene)/launch/single_quad_spawn.launch">
-        <arg name="x" value="0"/>
-        <arg name="y" value="0"/>
-        <arg name="z" value="0"/>
-        <arg name="R" value="0"/>
-        <arg name="P" value="0"/>
-        <arg name="Y" value="0"/>
-        <arg name="vehicle" value="iris"/>
-        <arg name="sdf" value="iris_realsense_camera"/>
-        <arg name="mavlink_udp_port" value="14560"/>
-        <arg name="mavlink_tcp_port" value="4560"/>
-        <arg name="ID" value="0"/>
-        <arg name="ID_in_group" value="0"/>
-    </include>
+    <!-- vehicle pose -->
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>
+    <arg name="z" default="0"/>
+    <arg name="R" default="0"/>
+    <arg name="P" default="0"/>
+    <arg name="Y" default="0"/>
+    <!-- vehicle model and world -->
+    <arg name="est" default="ekf2"/>
+    <arg name="vehicle" default="iris"/>
+    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg vehicle)/$(arg vehicle).sdf"/>
+    <env name="PX4_SIM_MODEL" value="gazebo-classic_$(arg vehicle)" />
 
+    <!-- PX4 configs -->
+    <arg name="interactive" default="true"/>
+    <!-- PX4 SITL -->
+    <arg unless="$(arg interactive)" name="px4_command_arg1" value="-d"/>
+    <arg     if="$(arg interactive)" name="px4_command_arg1" value=""/>
+    <node name="sitl" pkg="px4" type="px4" output="screen"
+        args="$(find px4)/build/px4_sitl_default/etc -s etc/init.d-posix/rcS $(arg px4_command_arg1)" required="true"/>
+
+    <!-- gazebo model -->
+    <node name="$(anon vehicle_spawn)" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sdf) -model $(arg vehicle) -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg R) -P $(arg P) -Y $(arg Y)"/>
+   
     <!-- launches MAVROS and emnv_ctl_bridge -->
     <!-- emnv_ctl_bridge configs -->
-    <arg name = "vehicle" default = "iris"/>
     <arg name = "ID" default = "0"/>
     <arg name = "takeoff_height" default = "1.1"/>
     <!-- RATE,ATTI,POSY  -->
