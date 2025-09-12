@@ -78,7 +78,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     // sub mavros states
     state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
     // Note: do NOT change it to /mavros/imu/data_raw !!!
-    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
+    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>(params_parse.ros_namespace + "/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
     // 注意不要用 target_attitude ,里面的油门可能不正确
     atti_target_sub_ = _nh.subscribe<mavros_msgs::AttitudeTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mavAttiTargetCallback, this);
 
@@ -622,7 +622,7 @@ void MavrosUtils::mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, std:
     std::string received_string = msg->data;
     if (received_string.find(name) != std::string::npos)
     {
-        ROS_INFO("Received takeoff command");
+        ROS_INFO("%s: Received takeoff command", name.c_str());
         fsm.setFlag("recv_takeoff_cmd", true);
         fsm.setFlag("recv_land_cmd", false); // 清除 land cmd
     }
@@ -702,6 +702,7 @@ void MavrosUtils::mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 }
 void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
+    // ROS_INFO("%s Current State: %s", params_parse.name.c_str(), fsm.getStatusMsg().c_str());
     fsm.updateOdomTimestamp(msg->header.stamp);
     odometry_.position = Eigen::Vector3d(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
     odometry_.rate = Eigen::Vector3d(msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z);
