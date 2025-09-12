@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Posix SITL environment launch script -->
+    <!-- launches PX4 SITL, Gazebo environment, and spawns quadrotor -->
+
+    <!-- gazebo configs -->
+    <arg name="world" default="$(find emnv_scene)/worlds/empty.world"/>
+    <arg name="gui" default="true"/>
+    <arg name="debug" default="false"/>
+    <arg name="verbose" default="false"/>
+    <arg name="paused" default="false"/>
+    <arg name="respawn_gazebo" default="false"/>
+
+    <!-- Gazebo sim -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="world_name" value="$(arg world)"/>
+        <arg name="debug" value="$(arg debug)"/>
+        <arg name="verbose" value="$(arg verbose)"/>
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+    </include>
+
+    <!-- PX4 SITL and vehicle spawn -->
+    <include file="$(find emnv_scene)/launch/single_quad_spawn.launch">
+        <arg name="x" value="0"/>
+        <arg name="y" value="0"/>
+        <arg name="z" value="0"/>
+        <arg name="R" value="0"/>
+        <arg name="P" value="0"/>
+        <arg name="Y" value="0"/>
+        <arg name="vehicle" value="iris"/>
+        <arg name="sdf" value="iris_realsense_camera"/>
+        <arg name="mavlink_udp_port" value="14560"/>
+        <arg name="mavlink_tcp_port" value="4560"/>
+        <arg name="ID" value="0"/>
+        <arg name="ID_in_group" value="0"/>
+    </include>
+
+    <!-- launches MAVROS and emnv_ctl_bridge -->
+    <!-- emnv_ctl_bridge configs -->
+    <arg name = "vehicle" default = "iris"/>
+    <arg name = "ID" default = "0"/>
+    <arg name = "takeoff_height" default = "1.1"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    <arg name = "drone_config_path" default = "$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
+    <!-- remap topic -->
+    <arg name = "odom_topic" default = "/mavros/local_position/odom"/>
+
+    <!-- MAVROS configs -->
+    <arg name="fcu_url" default="udp://:14540@127.0.0.1:14550"/>
+    <arg name="tgt_system" default="1" />
+	<arg name="tgt_component" default="1" />
+
+    <!-- sim time -->
+    <!-- <param name="/use_sim_time" type="bool" value="false"/> -->
+    
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <node name = "ctl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+        <!-- <remap from="~pos_sp_cmd" to="/traj_test/cmd"/> -->
+        <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
+        
+        <remap from="~ref_odom" to="$(arg odom_topic)"/>
+        <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
+        <param name ="enable_vel_transpose_b2w" value="true"/>
+        <param name ="drone_config_path" value="$(arg drone_config_path)"/>
+
+        <param name ="drone_name" value="$(arg vehicle)_$(arg ID)"/>
+        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+    </node> 
+
+    <include file="$(find mavros)/launch/px4.launch" >
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="tgt_system" value="$(arg tgt_system)" />
+        <arg name="log_output" value="log"/>
+    </include>
+
+</launch>
