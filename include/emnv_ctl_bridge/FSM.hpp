@@ -74,21 +74,21 @@ public:
         last_state = IDLE;
         resetFlags();
         enable_odom_timeout_check = _enable_odom_timeout_check;
-#define TIME_OFFSET_SEC 1000
-    try {
-        last_recv_pva_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
-        last_try_offboard_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
-        last_try_arm_time = ros::Time::now() - ros::Duration(4);
-        last_try_land_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
-        last_recv_odom_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
-    } catch (...) {
-        last_recv_pva_time = ros::Time::now();
-        last_try_offboard_time = ros::Time::now();
-        last_try_arm_time = ros::Time::now();
-        last_try_land_time = ros::Time::now();
-        last_recv_odom_time = ros::Time::now();
-        ROS_WARN("FSM: Failed to set time offsets, fallback to now()");
-    }
+        #define TIME_OFFSET_SEC 1000
+        try {
+            last_recv_pva_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+            last_try_offboard_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+            last_try_arm_time = ros::Time::now() - ros::Duration(4);
+            last_try_land_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+            last_recv_odom_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+        } catch (...) {
+            last_recv_pva_time = ros::Time::now();
+            last_try_offboard_time = ros::Time::now();
+            last_try_arm_time = ros::Time::now();
+            last_try_land_time = ros::Time::now();
+            last_recv_odom_time = ros::Time::now();
+            ROS_WARN("FSM: Failed to set time offsets, fallback to now()");
+        }
         
         ROS_INFO("init FSM");
     }

@@ -19,6 +19,7 @@
 #include "emnv_ctl_bridge/mavros_utils.hpp"
 
 
+#include <ctime>
 
 
 MavrosUtils* mavros_utils_ptr = nullptr;
@@ -47,6 +48,24 @@ int main(int argc, char **argv)
     std::cout << "ctrl_pub_level " << params_parse.ctrl_pub_level << std::endl;
     std::cout << "takeoff_height" << params_parse.takeoff_height << std::endl;
 
+    timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    std::cout << "Current time: " 
+              << now.tv_sec << " seconds, " 
+              << now.tv_nsec << " nanoseconds" 
+              << std::endl;
+    ros::Time ros_now = ros::Time::now();
+    std::cout << "Current ROS time: " 
+              << ros_now.sec << " seconds, " 
+              << ros_now.nsec << " nanoseconds" 
+              << std::endl;
+
+    if (ros::Time::isSimTime())
+    {
+        ROS_INFO("Waiting for /clock to become valid...");
+        ros::Time::waitForValid();
+        ROS_INFO("Clock is now valid.");
+    }
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////

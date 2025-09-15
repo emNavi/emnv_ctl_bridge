@@ -7,7 +7,8 @@
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
     
-
+    <!-- sim time -->
+    <param name="/use_sim_time" type="bool" value="false"/>
 
     <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
 
