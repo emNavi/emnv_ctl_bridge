@@ -66,10 +66,7 @@ ctl bridge 提供快速起飞与降落的功能
 source devel/setup.bash
 takeoff drone
 land drone
-# "drone" 是一个参数（drone_name），在launch文件中配置
-# 你也可以一次起飞或降落多个飞机
-takeoff drone1,drone2
-land drone1,drone2
+# "drone" 是一个参数（drone_id），在launch文件中配置
 ```
 
 起飞降落阶段具有以下特性
@@ -140,3 +137,10 @@ TODO
 - 更多使用请参考[轨迹生成模块](./docs/ploy_traj.md)
 ### lemniscate
 生成8字轨迹
+
+
+
+
+## drone_id 的定义
+
+drone_id 是一个0~255的数字

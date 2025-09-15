@@ -42,8 +42,9 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
         throw std::runtime_error("Failed to load drone configuration");
 
     // vrpn - vision_pose 动捕消息
-    ros::Subscriber vrpn_pose = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
-    vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>(params_parse_.ros_namespace + "/mavros/vision_pose/pose", 10);
+    vrpn_pose = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
+    vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>("vrpn_convert_pose", 10);
+    // params_parse.ros_namespace + "/mavros/vision_pose/pose"
     // local_position 消息
     if (params_parse_.enable_vel_transpose_b2w)
     {
@@ -56,9 +57,10 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     world_odom_pub_ = _nh.advertise<nav_msgs::Odometry>("world_odom", 10);
 
     // sub mavros states
-    state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse_.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
+    state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
+    extended_state_sub_ = _nh.subscribe<mavros_msgs::ExtendedState>(params_parse.ros_namespace + "/mavros/extended_state", 10, &MavrosUtils::mavExtendedStateCallback, this);
     // Note: do NOT change it to /mavros/imu/data_raw !!!
-    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
+    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>(params_parse.ros_namespace + "/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
 
     ctrl_atti_pub_ = _nh.advertise<mavros_msgs::AttitudeTarget>(params_parse_.ros_namespace + "/mavros/setpoint_raw/attitude", 10);
     ctrl_posy_pub_ = _nh.advertise<mavros_msgs::PositionTarget>(params_parse_.ros_namespace + "/mavros/setpoint_raw/local", 10);
@@ -476,10 +478,22 @@ void MavrosUtils::ctrl_loop()
             if (fsm.last_state != CtrlFSM::RUNNING)
             {
                 lin_controller.setCtrlMask(LinearControl::CTRL_MASK::POSI | LinearControl::CTRL_MASK::VEL | LinearControl::CTRL_MASK::ACC);
-                ROS_INFO("MODE: RUNNING   ctrl mode == %d ", (int8_t)ctrl_level);
+                ROS_INFO("MODE: RUNNING ctrl mode == %d ", (int8_t)ctrl_level);
             }
             if (ctrl_level == CmdPubType::POSY)
             {
+                // 如果是位置控制
+                // position指令不变
+                // velocity
+                Eigen::Vector3d pos_err = ctrl_cmd_.position - odometry_.position;
+
+                Eigen::Vector3d extra_vel_gain;
+                Eigen::Vector3d extra_acc_gain;
+
+                lin_controller.getExtraGain(extra_vel_gain, extra_acc_gain);
+                ctrl_cmd_.velocity = extra_vel_gain.asDiagonal() * pos_err + ctrl_cmd_.feedforward_vel; // 位置环 P 控制
+                Eigen::Vector3d vel_err = ctrl_cmd_.velocity - odometry_.velocity;
+                ctrl_cmd_.acceleration = extra_acc_gain.asDiagonal() * vel_err + ctrl_cmd_.feedforward_acc; // 速度环 P 控制
             }
             else if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
@@ -519,7 +533,7 @@ void MavrosUtils::ctrl_loop()
                 
                 if (ros::Time::now() - context_.landing_touchdown_start_time > ros::Duration(2))
                 {
-                    ROS_INFO("Land done");
+                    ROS_INFO("Land done");             
                     setThrustZero();
                     requestDisarm();
                     fsm.setFlag("land_done", true);
@@ -527,31 +541,48 @@ void MavrosUtils::ctrl_loop()
             }
             else if(ctrl_level == CmdPubType::POSY)
             {
-                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - 0.01*target_land_vel;
-                ctrl_cmd_.velocity(0) = 0;
-                ctrl_cmd_.velocity(1) = 0;
-                ctrl_cmd_.velocity(2) = 0;
-                ctrl_cmd_.acceleration(0) = 0;
-                ctrl_cmd_.acceleration(1) = 0;
-                ctrl_cmd_.acceleration(2) = 0;
+                ctrl_cmd_.position(0) = context_.last_state_position(0);
+                ctrl_cmd_.position(1) = context_.last_state_position(1);
+                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - (1/(double)params_parse.loop_rate)*target_land_vel;
+                
+                ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
+                ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
+                ctrl_cmd_.yaw = context_.last_state_yaw;
+                ctrl_cmd_.feedforward_acc = Eigen::Vector3d::Zero();
+                ctrl_cmd_.feedforward_vel = Eigen::Vector3d::Zero();
+                
+                
 
-                if (get_hover_thrust() > 0.11 && odometry_.velocity(2) < -0.1)
+                // TODO: 在 152b 上长期 <-0.1 m/s 对于local_position/odom 来说很难达到，所以这里用||
+                if (context_.landed_state== false && context_.check_vel_landed(odometry_.position(2),ros::Time::now())== false )
                 {
+                    // 不满足着陆条件就重置计时
                     // ROS_INFO("Land thrust: %f", get_hover_thrust());
                     context_.landing_touchdown_start_time = ros::Time::now();
                 }
                 if (ros::Time::now() - context_.landing_touchdown_start_time > ros::Duration(2))
                 {
-
-                    ROS_INFO("Land done");
-                    ros::Duration(1).sleep();
-                    ros::spinOnce();
-                    while (requestDisarm() == false)
+                    double wait_arm_time = 5.0; // s
+                    ctrl_level = CmdPubType::RATE; // 切换到姿态控制
+                    while (ros::ok() && isArmed() && wait_arm_time > 0)
                     {
+                        setThrustZero();
+                        sentCtrlCmd();
+                        // requestDisarm();
+                        ros::Duration(0.05).sleep();
+                        ros::spinOnce();
+                        wait_arm_time -= 0.05;
+                    }           
+                    ROS_INFO("Land done; disarm");
+                    while ( isArmed() )
+                    {
+                        requestDisarm();
                         ROS_WARN("Disarm failed, try again");
                         ros::Duration(1).sleep();
                         ros::spinOnce();
                     }
+                    ctrl_level = CmdPubType::POSY; // 切换回位置控制
+                    // check to stabilize
                     fsm.setFlag("land_done", true);
                 }
             }
@@ -571,13 +602,19 @@ void MavrosUtils::mavPosCtrlSpCallback(const emnv_ctl_bridge::PvayCommand::Const
         ctrl_cmd_.position(0) = msg->position.x;
         ctrl_cmd_.position(1) = msg->position.y;
         ctrl_cmd_.position(2) = msg->position.z;
-        ctrl_cmd_.velocity(0) = msg->velocity.x;
-        ctrl_cmd_.velocity(1) = msg->velocity.y;
-        ctrl_cmd_.velocity(2) = msg->velocity.z;
-        ctrl_cmd_.acceleration(0) = msg->acceleration.x;
-        ctrl_cmd_.acceleration(1) = msg->acceleration.y;
-        ctrl_cmd_.acceleration(2) = msg->acceleration.z;
+
+        ctrl_cmd_.feedforward_vel(0) = msg->velocity.x;
+        ctrl_cmd_.feedforward_vel(1) = msg->velocity.y;
+        ctrl_cmd_.feedforward_vel(2) = msg->velocity.z;
+
+        ctrl_cmd_.feedforward_acc(0) = msg->acceleration.x;
+        ctrl_cmd_.feedforward_acc(1) = msg->acceleration.y;
+        ctrl_cmd_.feedforward_acc(2) = msg->acceleration.z;
         ctrl_cmd_.yaw = msg->yaw;
+        // set zero
+        ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
+        ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
+
     }
 }
 
@@ -617,17 +654,16 @@ void MavrosUtils::mavAttiSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr 
 }
 
 void MavrosUtils::mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg)
-{ // 创建一个新的 PoseStamped 消息
+{ 
+    // std::cout << "vrpn callback" << std::endl;
     geometry_msgs::PoseStamped modified_msg;
     modified_msg.header.stamp = ros::Time::now();
-    modified_msg.header.frame_id = msg->header.frame_id; // 保留原来的 frame_id
+    modified_msg.header.frame_id = msg->header.frame_id; // keep the same frame id
 
-    // 对位置进行变换（例如，添加一个偏移量）
-    modified_msg.pose.position.x = msg->pose.position.x / 1000.0; // 偏移量为 1.0 米
+    // Motion capture system uint is usually in millimeters, convert to meters
+    modified_msg.pose.position.x = msg->pose.position.x / 1000.0; 
     modified_msg.pose.position.y = msg->pose.position.y / 1000.0;
     modified_msg.pose.position.z = msg->pose.position.z / 1000.0;
-
-    // 对方向（四元数）进行变换（这里保持不变，仅作为示例）
     modified_msg.pose.orientation = msg->pose.orientation;
     vision_pose_pub.publish(modified_msg);
 }
@@ -635,11 +671,13 @@ void MavrosUtils::mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr
 void MavrosUtils::mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, std::string name)
 {
     std::string received_string = msg->data;
+    // std::debug << "Takeoff cmd received: " << received_string << std::endl;
+    // std::debug << "Vehicle name: " << name << std::endl;
     if (received_string.find(name) != std::string::npos)
     {
         ROS_INFO("Received takeoff command");
         fsm.setFlag("recv_takeoff_cmd", true);
-        fsm.setFlag("recv_land_cmd", false); // 清除 land cmd
+        fsm.setFlag("recv_land_cmd", false);
     }
 }
 
@@ -649,7 +687,7 @@ void MavrosUtils::mavLandCallback(const std_msgs::String::ConstPtr &msg, std::st
     if (received_string.find(name) != std::string::npos)
     {
         ROS_INFO("Received land command");
-
+        fsm.setFlag("recv_takeoff_cmd", false);
         fsm.setFlag("recv_land_cmd", true);
     }
 }
@@ -669,6 +707,21 @@ void MavrosUtils::mavStateCallback(const mavros_msgs::State::ConstPtr &msg)
     context_.armed = msg->armed;
     context_.connected = msg->connected;
     context_.mode = msg->mode;
+}
+void MavrosUtils::mavExtendedStateCallback(const mavros_msgs::ExtendedState::ConstPtr &msg)
+{
+    // 1 is landed
+    // 2 is in air
+    if(msg->landed_state == 1 && context_.landed_state != 1)
+    {
+        // ROS_INFO("Landed");
+        context_.landed_state = true;
+    }
+    else if(msg->landed_state != 1 && context_.landed_state == 1)
+    {
+         context_.landed_state = false;
+    }
+    
 }
 void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
 {
@@ -731,7 +784,7 @@ void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 
     nav_msgs::Odometry world_odom;
     world_odom.header.stamp = msg->header.stamp;
-    world_odom.header.frame_id = "world"; // 世界坐标系
+    world_odom.header.frame_id = "uav_world"; // 世界坐标系
     world_odom.child_frame_id = "base_link"; // 子坐标系
     world_odom.pose.pose.position.x = odometry_.position(0);
     world_odom.pose.pose.position.y = odometry_.position(1);

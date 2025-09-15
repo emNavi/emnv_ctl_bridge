@@ -29,12 +29,12 @@ int main(int argc, char **argv)
     ParamsParse params_parse;
     params_parse.ros_namespace = ros::this_node::getNamespace();
     CmdPubType ctrl_pub_level;
-    nh.param<double>("takeoff_height", params_parse.takeoff_height, 0.3);
+    nh.param<double>("takeoff_height", params_parse.takeoff_height, 0.5);
     nh.param<std::string>("ctrl_pub_level", params_parse.ctrl_pub_level, "ATTI");
     nh.getParam("ctrl_mode", params_parse.ctrl_mode);
 
     nh.param<double>("loop_rate", params_parse.loop_rate, 100.0);
-    nh.param<std::string>("drone_name", params_parse.name, "drone");
+    nh.getParam("drone_id", params_parse.name);
 
     nh.param<bool>("enable_vel_transpose_b2w", params_parse.enable_vel_transpose_b2w, false);
     nh.param<bool>("enable_imu_dt_check", params_parse.enable_imu_dt_check, true);

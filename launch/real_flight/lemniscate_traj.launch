@@ -1,0 +1,11 @@
+<launch>
+    <node name = "lemniscate" pkg = "emnv_ctl_bridge" type = "lemniscate.py" output = "screen" required="false">
+        <remap from="bridge_status" to="/ctrl_bridge_1/bridge_status"/>
+        <remap from="lemniscate_point" to="/drone_1_planning/lemniscate_point"/>
+        <param name ="pub_cmd_flag" value="true"/>
+        <param name ="just_view" value="false"/>
+        <param name ="base_x" value="0.0"/>
+        <param name ="base_y" value="0.0"/>
+
+    </node> 
+</launch>

@@ -2,7 +2,9 @@
 #define __MAVROS_UTILS_HPP
 
 #include <ros/ros.h>
+#include <queue>
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/ExtendedState.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -49,7 +51,6 @@ public:
     {
         last_recv_odom_time = ros::Time::now();
         landing_touchdown_start_time = ros::Time::now();
-
     };
     ~MavContext(){
 
@@ -59,7 +60,8 @@ public:
     bool is_offboard=false; 
     bool connected = false;
     bool armed = false;
-    std::string mode="";
+    bool landed_state = true;
+    std::string mode = "";
 
     // landing context
     ros::Time landing_touchdown_start_time;
@@ -69,8 +71,41 @@ public:
     // Eigen::Vector3d last_state_velocity;
     Eigen::Quaterniond last_state_attitude;
     double last_state_yaw = 0.0; // last state yaw, used for landing
+    std::queue<std::pair<double, ros::Time>> landing_mode_height_buffer;
+    bool check_vel_landed(double height, ros::Time now)
+    {
+        // 添加新数据
+        landing_mode_height_buffer.push(std::make_pair(height, now));
 
+        // 保留最近2秒的数据
+        while (!landing_mode_height_buffer.empty() &&
+            (now - landing_mode_height_buffer.front().second).toSec() > 2.0)
+        {
+            landing_mode_height_buffer.pop();
+        }
 
+        if (landing_mode_height_buffer.size() < 2)
+        {
+            return false;
+        }
+
+        // 取最早和最新的高度
+        double h_start = landing_mode_height_buffer.front().first;
+        double h_end   = landing_mode_height_buffer.back().first;
+        ros::Time t_start = landing_mode_height_buffer.front().second;
+        ros::Time t_end   = landing_mode_height_buffer.back().second;
+
+        double dt = (t_end - t_start).toSec();
+        if (dt <= 0.1)  // 数据太短
+        {
+            return false;
+        }
+
+        double v_avg = std::abs((h_end - h_start) / dt); // 平均速度
+
+        // 判定是否落地
+        return v_avg < 0.1;  // 2秒内平均速度小于0.1 m/s
+    };
 };
 
 class MavrosUtils
@@ -83,6 +118,9 @@ public:
     // 所有可能用到的控制变量
     struct CtrlCommand
     {
+        // traj_exp pva;
+        Eigen::Vector3d feedforward_vel; // feedforward vel for position controller
+        Eigen::Vector3d feedforward_acc; // feedforward acc for position controller
         // position control
         Eigen::Vector3d position;
         Eigen::Vector3d velocity;
@@ -115,21 +153,21 @@ private:
     ros::NodeHandle nh;
     // ==================  Node  ==================
     // Subscribe Mavros Msg
-    ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub,super_target_sub;
     ros::Subscriber update_ctrl_params_sub;
+    ros::Subscriber state_sub_, extended_state_sub_, current_odom_sub_, imu_data_sub_, atti_target_sub_, user_cmd_sub;
     ros::Publisher world_odom_pub_;
     // Subscribe Ctrl Command
-    ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
+    ros::Subscriber pva_yaw_sub, atti_sp_sub, rate_sp_sub;
     // ros::Subscriber local_linear_vel_sub;
-    // Subscribe external information 
-    ros::Subscriber vision_pose_sub,vrpn_pose_sub;
+    // Subscribe external information
+    ros::Subscriber vision_pose_sub, vrpn_pose_sub;
     // Subscribe takeoff and land command
-    ros::Subscriber takeoff_sub,land_sub,cmd_vaild_sub;
+    ros::Subscriber takeoff_sub, land_sub, cmd_vaild_sub;
 
     // Publish Mavros State Msg
     ros::Publisher vision_pose_pub;
     // Publish Mavros Ctrl Msg
-    ros::Publisher local_pvay_pub,ctrl_atti_pub_,ctrl_posy_pub_;
+    ros::Publisher local_pvay_pub, ctrl_atti_pub_, ctrl_posy_pub_;
     // Publish MavUtils State
     ros::Publisher hover_thrust_pub_;
     ros::Publisher bridge_status_pub;
@@ -138,7 +176,7 @@ private:
     // ==================  Params  ==================
 
     HoverThrustEkf *hover_thrust_ekf_;
-    double _hover_thrust=0.3;
+    double _hover_thrust = 0.15;
     Px4AttitudeController atti_controller_;
     bool enable_imu_dt_check_f;
 
@@ -157,14 +195,15 @@ public:
     void mavUpdateCtrlParamsCallback(const std_msgs::Empty::ConstPtr &msg);
 
     void mavStateCallback(const mavros_msgs::State::ConstPtr &msg);
+    void mavExtendedStateCallback(const mavros_msgs::ExtendedState::ConstPtr &msg);
     void mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
-    
+
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
     // void TargetPvayCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
-    void mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name);
-    void mavLandCallback(const std_msgs::String::ConstPtr& msg, std::string name);
-    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr& msg, std::string name);
+    void mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, std::string name);
+    void mavLandCallback(const std_msgs::String::ConstPtr &msg, std::string name);
+    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, std::string name);
 
     void mavVisionPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
@@ -175,13 +214,12 @@ public:
     void mavAttiSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
     void mavRateSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
 
-
     void waitConnected();
     /**
      * @brief 向Mosvos请求解锁
-     * 
-     * @return true 
-     * @return false 
+     *
+     * @return true
+     * @return false
      */
     bool requestArm();
     /**
@@ -195,8 +233,10 @@ public:
      * @return 成功(true)或失败(false)
      * @return 成功(true)
      * @return 失败(false)
-     */   
+     */
     bool requestDisarm();
+
+    bool request_land();
 
     void sentCtrlCmd();
     void setMotorsIdling();
@@ -215,7 +255,7 @@ public:
     {
         return context_.armed;
     }
-    
+
     /**
      * @brief 位置控制更新，输入期望位置，速度，加速度，yaw角
      * @param des_pos 期望位置
