@@ -36,11 +36,13 @@ int main(int argc, char **argv)
     nh.param<double>("loop_rate", params_parse.loop_rate, 100.0);
     nh.getParam("drone_id", params_parse.name);
 
-    nh.param<bool>("enable_vel_transpose_b2w", params_parse.enable_vel_transpose_b2w, false);
     nh.param<bool>("enable_imu_dt_check", params_parse.enable_imu_dt_check, true);
     nh.param<bool>("enable_odom_timeout_check", params_parse.enable_odom_timeout_check, true);
+    nh.param<std::string>("ref_odom_topic", params_parse.ref_odom_topic, "/mavros/local_position/odom");
+
 
     nh.param<std::string>("drone_config_path", params_parse.drone_config_path, "");
+    nh.param<bool>("use_vrpn_convert", params_parse.use_vrpn_convert, false);
 
     std::cout << "ctrl_pub_level " << params_parse.ctrl_pub_level << std::endl;
     std::cout << "takeoff_height" << params_parse.takeoff_height << std::endl;

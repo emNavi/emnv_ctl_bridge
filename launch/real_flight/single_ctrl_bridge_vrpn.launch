@@ -1,0 +1,29 @@
+<launch>
+    <arg name = "drone_id" default="1"/>
+    <arg name = "takeoff_height" default="0.3"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "POSY"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    <arg name="fcu_url"/>
+    <arg name="gcs_url" default = "10.42.0.191"/>
+    <arg name="vrpn_server_ip" default="10.42.0.107"/>
+    <arg name="vrpn_body_name" default="wanghao1"/>
+    <arg name="gcs_udp_ip_and_port" default="udp://@$(arg gcs_udp_ip):14550"/>
+
+    <include file="$(find vrpn_client_ros)/launch/sample.launch">
+        <arg name="server" value="$(arg vrpn_server_ip)"/>
+    </include>
+    <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
+        <arg name="drone_id" value="$(arg drone_id)"/>
+        <arg name="takeoff_height" value="$(arg takeoff_height)"/>
+        <arg name="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <arg name="ctrl_mode" value="$(arg ctrl_mode)"/>
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="gcs_url" value="$(arg gcs_url)"/>
+        <arg name="vrpn_server_ip" value="$(arg vrpn_server_ip)"/>
+        <arg name="vrpn_body_name" value="$(arg vrpn_body_name)"/>
+        <arg name="gcs_udp_ip_and_port" value="$(arg gcs_udp_ip_and_port)"/>
+    </include>
+</launch>
+

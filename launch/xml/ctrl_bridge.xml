@@ -1,0 +1,51 @@
+<launch>
+    <arg name = "drone_id" default="1"/>
+    <arg name = "drone_type" default="X152b"/>
+    <arg name = "takeoff_height" default="0.3"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode"/>
+    <!-- mavros parameter -->
+    <arg name="fcu_url"/>
+    <arg name="gcs_udp_ip_and_port" default = ""/>
+    <arg name="tgt_system" default = "1"/>
+
+    <arg name="pos_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/pos_cmd"/>
+    <arg name="atti_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/atti_cmd"/>
+    <arg name="rate_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/rate_cmd"/>
+
+    <arg name="ref_odom_topic" default="/mavros/local_position/odom"/>
+
+    <!-- vrpn parameter -->
+    <arg name="use_vrpn_convert" default="false"/>
+    <arg name="vrpn_body_name" default="placeholder"/>
+    <arg name="vrpn_convert_topic" default="/mavros/vision_pose/pose"/>
+
+    <node name = "ctrl_bridge_$(arg drone_id)" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+        <remap from="~pos_sp_cmd" to="$(arg pos_sp_cmd_topic)"/> 
+        <remap from="~atti_sp_cmd" to="$(arg atti_sp_cmd_topic)"/>   
+        <remap from="~rate_sp_cmd" to="$(arg rate_sp_cmd_topic)"/>
+         <!-- Note: here we use vrpn_pose instead of /vrpn_client_node/$(arg vrpn_body_name)/pose, because we remap it in the vrpn_client_ros launch-->
+        <remap from="~vrpn_pose" to="/vrpn_client_node/$(arg vrpn_body_name)/pose"/>
+        <remap from="~vrpn_convert_pose" to="$(arg vrpn_convert_topic)"/>
+        <param name="use_vrpn_convert" value="$(arg use_vrpn_convert)"/>
+        <param name ="ref_odom_topic" value="$(arg ref_odom_topic)"/>
+        <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
+        <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_$(arg drone_type).yaml"/>
+
+        <param name ="drone_id" value="$(arg drone_id)"/>
+        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+    </node> 
+
+    <include file="$(find emnv_ctl_bridge)/launch/px4.launch">
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="gcs_url" value="udp://@gcs_udp_ip_and_port"/>
+        <arg name="tgt_system" value="$(arg tgt_system)"/>
+    </include>
+
+    
+</launch>
+

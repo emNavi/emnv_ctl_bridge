@@ -32,10 +32,10 @@ roslaunch emnv_ctl_bridge 1simple_gazebo_test.launch
 ```
 source devel/setup.bash
 # 起飞
-takeoff iris
+takeoff 1
 
 # 降落 
-land iris
+land 1
 ```
 
 

@@ -40,20 +40,24 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     std::cout << "set_bridge_mode success" << std::endl;
     if(!updateCtrlParams(false))
         throw std::runtime_error("Failed to load drone configuration");
+    if(params_parse_.use_vrpn_convert)
+    {
+        ROS_INFO("Using vrpn_convert for motion capture data");
+        // vrpn - vision_pose 动捕消息
+        vrpn_pose_sub = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
+        vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>("vrpn_convert_pose", 10);
+    }
 
-    // vrpn - vision_pose 动捕消息
-    vrpn_pose = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
-    vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>("vrpn_convert_pose", 10);
     // params_parse.ros_namespace + "/mavros/vision_pose/pose"
     // local_position 消息
-    if (params_parse_.enable_vel_transpose_b2w)
-    {
-        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavLocalOdomCallback, this);
+    if (params_parse_.ref_odom_topic.find("mavros/local_position") != std::string::npos) {
+        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>(params_parse.ros_namespace + params_parse_.ref_odom_topic, 10, &MavrosUtils::mavLocalOdomCallback, this);
     }
     else
     {
-        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavRefOdomCallback, this);
+        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>(params_parse.ros_namespace + params_parse_.ref_odom_topic, 10, &MavrosUtils::mavRefOdomCallback, this);
     }
+
     world_odom_pub_ = _nh.advertise<nav_msgs::Odometry>("world_odom", 10);
 
     // sub mavros states
@@ -543,17 +547,14 @@ void MavrosUtils::ctrl_loop()
             {
                 ctrl_cmd_.position(0) = context_.last_state_position(0);
                 ctrl_cmd_.position(1) = context_.last_state_position(1);
-                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - (1/(double)params_parse.loop_rate)*target_land_vel;
+                ctrl_cmd_.position(2) = ctrl_cmd_.position(2) - (1/(double)params_parse_.loop_rate)*target_land_vel;
                 
                 ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
                 ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
                 ctrl_cmd_.yaw = context_.last_state_yaw;
                 ctrl_cmd_.feedforward_acc = Eigen::Vector3d::Zero();
                 ctrl_cmd_.feedforward_vel = Eigen::Vector3d::Zero();
-                
-                
-
-                // TODO: 在 152b 上长期 <-0.1 m/s 对于local_position/odom 来说很难达到，所以这里用||
+                                
                 if (context_.landed_state== false && context_.check_vel_landed(odometry_.position(2),ros::Time::now())== false )
                 {
                     // 不满足着陆条件就重置计时

@@ -54,11 +54,13 @@ target_link_libraries(traj_test
 )
 
 set(SETUP_BASH_FILE "${CMAKE_BINARY_DIR}/../devel/setup.bash")
+set(ENV_UPDATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/Tools/update_env.sh")
 set(SCRIPT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Tools/help_func.sh")
 
-
-# 将脚本路径添加到 setup.bash 文件
+add_custom_target(HelpFuncTarget ALL
+  DEPENDS ${SCRIPT_PATH}
+)
 add_custom_command(
-  TARGET ctrl_bridge POST_BUILD
-  COMMAND echo "source ${SCRIPT_PATH}" >> ${SETUP_BASH_FILE}
+    TARGET HelpFuncTarget POST_BUILD
+    COMMAND bash ${ENV_UPDATE_SCRIPT} ${SETUP_BASH_FILE} ${SCRIPT_PATH}
 )
