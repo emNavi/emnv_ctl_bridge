@@ -47,44 +47,31 @@
    
     <!-- launches MAVROS and emnv_ctl_bridge -->
     <!-- emnv_ctl_bridge configs -->
-    <arg name = "ID" default = "0"/>
-    <arg name = "takeoff_height" default = "1.1"/>
+    <arg name = "drone_id" default = "1"/>
+    <arg name = "drone_type" default = "gazebo_iris"/>
+    <arg name = "takeoff_height" default = "2.1"/>
     <!-- RATE,ATTI,POSY  -->
-    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <arg name = "ctrl_pub_level" default = "POSY"/>
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
-    <arg name = "drone_config_path" default = "$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
-    <!-- remap topic -->
-    <arg name = "odom_topic" default = "/mavros/local_position/odom"/>
-
     <!-- MAVROS configs -->
     <arg name="fcu_url" default="udp://:14540@127.0.0.1:14550"/>
     <arg name="tgt_system" default="1" />
-	<arg name="tgt_component" default="1" />
 
     <!-- sim time -->
-    <!-- <param name="/use_sim_time" type="bool" value="false"/> -->
+    <param name="/use_sim_time" type="bool" value="false"/>
     
     <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
-    <node name = "ctl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
-        <!-- <remap from="~pos_sp_cmd" to="/traj_test/cmd"/> -->
-        <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
-        
-        <remap from="~ref_odom" to="$(arg odom_topic)"/>
-        <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
-        <param name ="enable_vel_transpose_b2w" value="true"/>
-        <param name ="drone_config_path" value="$(arg drone_config_path)"/>
-
-        <param name ="drone_name" value="$(arg vehicle)_$(arg ID)"/>
-        <param name ="takeoff_height" value="$(arg takeoff_height)"/>
-        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
-        <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
-    </node> 
-
-    <include file="$(find mavros)/launch/px4.launch" >
+    <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
+        <arg name="drone_id" value="$(arg drone_id)"/>
+        <arg name="drone_type" value="$(arg drone_type)"/>
+        <arg name="takeoff_height" value="$(arg takeoff_height)"/>
+        <arg name="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <arg name="ctrl_mode" value="$(arg ctrl_mode)"/>
         <arg name="fcu_url" value="$(arg fcu_url)"/>
-        <arg name="tgt_system" value="$(arg tgt_system)" />
-        <arg name="log_output" value="log"/>
+        <arg name="tgt_system" value="$(arg tgt_system)"/>
+        <!-- <arg name="gcs_udp_ip_and_port" value="udp://@$(arg gcs_udp_ip):14550"/> -->
+        <arg name="ref_odom_topic" value="/mavros/local_position/odom"/>
     </include>
 
 </launch>

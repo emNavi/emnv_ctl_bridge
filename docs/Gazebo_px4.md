@@ -13,7 +13,7 @@ graph RL
 # 最小Gazebo环境测试
 
 
-开始前你需要[编译px4](./Px4_Compile.md), 此外，为了更好的测试，你需要[修改px4仿真代码](./Px4_Compile.md#如何提高定位精度)以提高定位精度
+开始前你需要[编译px4](./Px4_Compile.md), 此外，为了更好的测试，你可以[修改px4仿真代码](./Px4_Compile.md#如何提高定位精度)以提高定位精度
 
 编译运行可执行文件直接打开gazebo仿真器和px4软件在环仿真
 ```bash
@@ -25,7 +25,7 @@ make px4_sitl gazebo-classic_iris
 catkin_make
 source devel/setup.bash
 
-roslaunch emnv_ctl_bridge 1simple_gazebo_test.launch
+roslaunch emnv_ctl_bridge 0minimal_gazebo_test.launch
 ```
 
 
@@ -38,17 +38,6 @@ takeoff 1
 # 降落 
 land 1
 ```
-
-<!-- ## 时间 
-
-当gazebo环境过于复杂时，仿真速度可能会降低，由于控制循环参考的是本机时间而不是仿真时间，会导致速度ctl_bridge的控制速度不是设定值
-
-
-## 端口选择
-Px4 软件在环中 不同的端口不是相同的会对消息选择性发送，我们需要使用携带有加速度信息的端口 -->
-
-
-
 ## 发送控制指令
 例如
 ```bash
@@ -68,26 +57,26 @@ trajectory_flag: 0" -r 10
 
 ```
 
+<!-- ## 端口选择
+Px4 软件在环中 不同的端口不是相同的会对消息选择性发送，我们需要使用携带有加速度信息的端口  -->
+
+以上是简单的测试
+之后的测试均基于gazebo_ros进行，你需要安装 emnv_scene
+
+<!-- 
+## 时间 
+
+当gazebo环境过于复杂时，仿真速度可能会降低，由于控制循环参考的是本机时间而不是仿真时间，会导致速度ctl_bridge的控制速度不是设定值 -->
+
+
+
 # 使用roslaunch的Gazebo环境测试
 同样，开始前你需要[编译px4](./Px4_Compile.md), 此外，为了更好的测试，你需要[修改px4仿真代码](./Px4_Compile.md#如何提高定位精度)以提高定位精度
 
-需要安装[gazebo_ros_pkgs](https://github.com/ros-simulation/gazebo_ros_pkgs/tree/noetic-devel)让gazebo使用rostopic发布自身状态。进入ws，下载gazebo_ros_pkgs
-```bash
-git clone https://github.com/ros-simulation/gazebo_ros_pkgs.git
-catkin_make
-```
+编译完成后，你需要在 PX4-Autopilot 目录下输入以下命令
 
-
-为gazebo添加ROS_PACKAGE_PATH等环境路径设置，在~/.bashrc中添加
 ```bash
-# Load ROS catkin workspace setup
-if [ -f ~/catkin_ws/devel/setup.bash ]; then
-    source ~/catkin_ws/devel/setup.bash
-fi
-# Load Gazebo path
-source ~/PX4-Autopilot/Tools/simulation/gazebo-classic/setup_gazebo.bash ~/PX4-Autopilot ~/PX4-Autopilot/build/px4_sitl_default
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:~/PX4-Autopilot
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:~/PX4-Autopilot/Tools/simulation/gazebo-classic/sitl_gazebo-classic
+echo "export PX4_HOME=$(pwd)"  >> ~/.bashrc
 ```
 
 现在打开一个新的terminal，输入
@@ -99,10 +88,10 @@ roslaunch emnv_ctl_bridge simlple_all_in_one_test.launch
 ```bash
 source devel/setup.bash
 # 起飞
-takeoff iris_0
+takeoff 1
 
 # 降落 
-land iris_0
+land 1
 ```
 
 

@@ -39,12 +39,13 @@
         <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
     </node> 
+        <include file="$(find mavros)/launch/px4.launch" >
+            <arg name="fcu_url" value="$(arg fcu_url)"/>
+            <arg name="tgt_system" value="$(arg tgt_system)"/>
+            <!-- <arg name="gcs_udp_url" value="$(arg udp:gcs_udp_ip_and_port)"/> -->
+            <arg name="log_output" value="log"/>
+        </include>
 
-    <include file="$(find emnv_ctl_bridge)/launch/px4.launch">
-        <arg name="fcu_url" value="$(arg fcu_url)"/>
-        <arg name="gcs_url" value="udp://@gcs_udp_ip_and_port"/>
-        <arg name="tgt_system" value="$(arg tgt_system)"/>
-    </include>
 
     
 </launch>
