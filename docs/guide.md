@@ -112,6 +112,11 @@ hover_thrust_ekf:
 - hover_thrust_noise: 悬停油门噪声
 - process_noise： imu加速度测量噪声
 
+
+>     // // 注意不要用 target_attitude ,里面的油门可能不正确
+>   // atti_target_sub_ = _nh.subscribe<mavros_msgs::AttitudeTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mavAttiTargetCallback, this);
+
+
 > 参考:px4悬停油门估计
 
 <!-- 

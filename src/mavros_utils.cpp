@@ -30,17 +30,61 @@ CtrlMode getCtrlMode(const std::string& key) {
 MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
 {
     nh = _nh;
-    enable_imu_dt_check_f = params_parse.enable_imu_dt_check; 
+    params_parse_ = params_parse;
+    enable_imu_dt_check_f = params_parse_.enable_imu_dt_check;
     // 设置模式，订阅对应控制指令
-    if (set_bridge_mode(params_parse.ctrl_mode, params_parse.ctrl_pub_level) < 0)
+    if (set_bridge_mode(params_parse_.ctrl_mode, params_parse_.ctrl_pub_level) < 0)
     {
         throw std::runtime_error("Failed to set bridge mode");
     }
     std::cout << "set_bridge_mode success" << std::endl;
-    // 解析yaml文件
+    if(!updateCtrlParams(false))
+        throw std::runtime_error("Failed to load drone configuration");
+
+    // vrpn - vision_pose 动捕消息
+    ros::Subscriber vrpn_pose = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
+    vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>(params_parse_.ros_namespace + "/mavros/vision_pose/pose", 10);
+    // local_position 消息
+    if (params_parse_.enable_vel_transpose_b2w)
+    {
+        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavLocalOdomCallback, this);
+    }
+    else
+    {
+        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavRefOdomCallback, this);
+    }
+    world_odom_pub_ = _nh.advertise<nav_msgs::Odometry>("world_odom", 10);
+
+    // sub mavros states
+    state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse_.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
+    // Note: do NOT change it to /mavros/imu/data_raw !!!
+    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
+
+    ctrl_atti_pub_ = _nh.advertise<mavros_msgs::AttitudeTarget>(params_parse_.ros_namespace + "/mavros/setpoint_raw/attitude", 10);
+    ctrl_posy_pub_ = _nh.advertise<mavros_msgs::PositionTarget>(params_parse_.ros_namespace + "/mavros/setpoint_raw/local", 10);
+
+    arming_client_ = _nh.serviceClient<mavros_msgs::CommandBool>(params_parse_.ros_namespace + "/mavros/cmd/arming");
+    set_mode_client_ = _nh.serviceClient<mavros_msgs::SetMode>(params_parse_.ros_namespace + "/mavros/set_mode");
+
+    takeoff_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/takeoff", 1000, boost::bind(&MavrosUtils::mavTakeoffCallback, this, _1, params_parse_.name));
+    land_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/land", 1000, boost::bind(&MavrosUtils::mavLandCallback, this, _1, params_parse_.name));
+    cmd_vaild_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/cmd_vaild", 1000, boost::bind(&MavrosUtils::mavCmd_vaildCallback, this, _1, params_parse_.name));
+    update_ctrl_params_sub = _nh.subscribe<std_msgs::Empty>("/emnavi_cmd/update_ctrl_params", 1, &MavrosUtils::mavUpdateCtrlParamsCallback, this);
+
+    bridge_status_pub = _nh.advertise<std_msgs::String>("bridge_status", 10);
+    // pub hover thrust
+    hover_thrust_pub_ = _nh.advertise<std_msgs::Float64>("hover_thrust", 10);
+
+    fsm.Init_FSM(params_parse_.enable_odom_timeout_check);
+}
+MavrosUtils::~MavrosUtils()
+{
+}
+bool MavrosUtils::updateCtrlParams(bool is_reload_yaml)
+{
     try
     {
-        YAML::Node config = YAML::LoadFile(params_parse.drone_config_path);
+        YAML::Node config = YAML::LoadFile(params_parse_.drone_config_path);
         Eigen::Vector3d p_gain, v_gain, a_gain;
         // linear_controller gains
         auto lin_gain = config["linear_controller"]["gain"];
@@ -51,55 +95,31 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
         lin_controller.set_max_tile(config["linear_controller"]["max_tile_deg"].as<double>());
         auto atti_gain = config["atti_controller"]["gain"];
         atti_controller_.set_pid_params(Eigen::Vector3d(atti_gain["Kx"].as<double>(), atti_gain["Ky"].as<double>(), atti_gain["Kz"].as<double>()));
-        auto ekf = config["hover_thrust_ekf"];
-        hover_thrust_ekf_ = new HoverThrustEkf(ekf["init_hover_thrust"].as<double>(), ekf["hover_thrust_noise"].as<double>(), ekf["process_noise"].as<double>(), ekf["hover_thrust_max"].as<double>());
+        if(!is_reload_yaml)
+        {
+            // just init once
+            auto ekf = config["hover_thrust_ekf"];
+            hover_thrust_ekf_ = new HoverThrustEkf(ekf["init_hover_thrust"].as<double>(), ekf["hover_thrust_noise"].as<double>(), ekf["process_noise"].as<double>(), ekf["hover_thrust_max"].as<double>());
+        }
+        return true;
     }
     catch (const YAML::Exception &e)
     {
-        ROS_ERROR_STREAM("YAML error: " << e.what() <<" "<< params_parse.drone_config_path);
-        throw std::runtime_error("Failed to load drone configuration");
+        ROS_ERROR_STREAM("YAML error: " << e.what() <<" "<< params_parse_.drone_config_path);
+        return false;
     }
-
-    // vrpn - vision_pose 动捕消息
-    ros::Subscriber vrpn_pose = _nh.subscribe<geometry_msgs::PoseStamped>("vrpn_pose", 10, &MavrosUtils::mavVrpnPoseCallback, this);
-    vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>(params_parse.ros_namespace + "/mavros/vision_pose/pose", 10);
-    // local_position 消息
-    if (params_parse.enable_vel_transpose_b2w)
-    {
-        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavLocalOdomCallback, this);
-
-    }
-    else
-    {
-        current_odom_sub_ = _nh.subscribe<nav_msgs::Odometry>("ref_odom", 10, &MavrosUtils::mavRefOdomCallback, this);
-    }
-    world_odom_pub_ = _nh.advertise<nav_msgs::Odometry>("world_odom", 10);
-
-    // sub mavros states
-    state_sub_ = _nh.subscribe<mavros_msgs::State>(params_parse.ros_namespace + "/mavros/state", 10, &MavrosUtils::mavStateCallback, this);
-    // Note: do NOT change it to /mavros/imu/data_raw !!!
-    imu_data_sub_ = _nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &MavrosUtils::mavImuDataCallback, this);
-    // 注意不要用 target_attitude ,里面的油门可能不正确
-    atti_target_sub_ = _nh.subscribe<mavros_msgs::AttitudeTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/attitude", 10, &MavrosUtils::mavAttiTargetCallback, this);
-
-    ctrl_atti_pub_ = _nh.advertise<mavros_msgs::AttitudeTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/attitude", 10);
-    ctrl_posy_pub_ = _nh.advertise<mavros_msgs::PositionTarget>(params_parse.ros_namespace + "/mavros/setpoint_raw/local", 10);
-
-    arming_client_ = _nh.serviceClient<mavros_msgs::CommandBool>(params_parse.ros_namespace + "/mavros/cmd/arming");
-    set_mode_client_ = _nh.serviceClient<mavros_msgs::SetMode>(params_parse.ros_namespace + "/mavros/set_mode");
-
-    takeoff_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/takeoff", 1000, boost::bind(&MavrosUtils::mavTakeoffCallback, this, _1, params_parse.name));
-    land_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/land", 1000, boost::bind(&MavrosUtils::mavLandCallback, this, _1, params_parse.name));
-    cmd_vaild_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/cmd_vaild", 1000, boost::bind(&MavrosUtils::mavCmd_vaildCallback, this, _1, params_parse.name));
-
-    bridge_status_pub = _nh.advertise<std_msgs::String>("bridge_status", 10);
-    // pub hover thrust
-    hover_thrust_pub_ = _nh.advertise<std_msgs::Float64>("hover_thrust", 10);
-
-    fsm.Init_FSM(params_parse.enable_odom_timeout_check);
 }
-MavrosUtils::~MavrosUtils()
+
+
+void MavrosUtils::mavUpdateCtrlParamsCallback(const std_msgs::Empty::ConstPtr &msg)
 {
+    // 更新控制参数
+    ROS_INFO("Updating control parameters...");
+    // TODO: 实现具体的更新逻辑
+    if(updateCtrlParams(true))
+        ROS_INFO("Control parameters updated successfully.");
+    else
+        ROS_WARN("Failed to update control parameters.");
 }
 
 int MavrosUtils::set_bridge_mode(std::string ctrl_mode_str, std::string ctrl_level_str)
@@ -326,8 +346,7 @@ bool MavrosUtils::requestDisarm()
 
 void MavrosUtils::ctrl_loop()
 {
-    // ros::Rate rate( (double)params_parse.loop_rate );
-    ros::Rate rate((double)params_parse.loop_rate);
+    ros::Rate rate((double)params_parse_.loop_rate);
     ros::Time last_fsm_status_pub_time = ros::Time::now();
     while (ros::ok())
     {
@@ -386,13 +405,13 @@ void MavrosUtils::ctrl_loop()
                 lin_controller.smooth_move_init();
                 // odometry_ comes from /mavros/local_position/odom
                 context_.last_state_position = odometry_.position;
-                context_.last_state_position(2) = params_parse.takeoff_height;
+                context_.last_state_position(2) = params_parse_.takeoff_height;
                 context_.last_state_attitude = odometry_.attitude;
                 context_.last_state_yaw = MyMath::fromQuaternion2yaw(odometry_.attitude); // 获取当前的yaw角
             }
             Eigen::Vector3d des_takeoff_pos;
             des_takeoff_pos = context_.last_state_position;
-            des_takeoff_pos(2) = params_parse.takeoff_height;
+            des_takeoff_pos(2) = params_parse_.takeoff_height;
 
             if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
@@ -425,7 +444,7 @@ void MavrosUtils::ctrl_loop()
             }
 
             // set auto_takeoff_height
-            if (abs(odometry_.position(2) - params_parse.takeoff_height) < 0.1)
+            if (abs(odometry_.position(2) - params_parse_.takeoff_height) < 0.1)
             {
                 fsm.setFlag("takeoff_done", true);
                 ROS_INFO("Take off done");
@@ -458,10 +477,6 @@ void MavrosUtils::ctrl_loop()
             {
                 lin_controller.setCtrlMask(LinearControl::CTRL_MASK::POSI | LinearControl::CTRL_MASK::VEL | LinearControl::CTRL_MASK::ACC);
                 ROS_INFO("MODE: RUNNING   ctrl mode == %d ", (int8_t)ctrl_level);
-                // std::cout << "ctrl mode is %d" << ctrl_level << std::endl;
-                // super_posm(0) = 0;
-                // super_posm(1) = 0;
-                // super_posm(2) = params_parse.takeoff_height;
             }
             if (ctrl_level == CmdPubType::POSY)
             {
@@ -657,16 +672,16 @@ void MavrosUtils::mavStateCallback(const mavros_msgs::State::ConstPtr &msg)
 }
 void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-    Eigen::Vector3d base_link_acc = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
+    Eigen::Vector3d baselink_acc = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
     odometry_.imu_attitude.x() = msg->orientation.x;
     odometry_.imu_attitude.y() = msg->orientation.y;
     odometry_.imu_attitude.z() = msg->orientation.z;
     odometry_.imu_attitude.w() = msg->orientation.w;
     
-    odometry_.acc = odometry_.attitude * base_link_acc; //
+    odometry_.acc = odometry_.imu_attitude * baselink_acc; //
     
-    double dt = (msg->header.stamp - context_.last_recv_odom_time).toSec();
-    context_.last_recv_odom_time = msg->header.stamp;
+    double dt = (msg->header.stamp - context_.last_recv_imu_data_time).toSec();
+    context_.last_recv_imu_data_time = msg->header.stamp;
     if (dt > 0.1 && enable_imu_dt_check_f)
     {
         ROS_WARN("IMU dt is too large");
@@ -697,7 +712,6 @@ void MavrosUtils::mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     odometry_.attitude.w() = msg->pose.pose.orientation.w;
 
     odometry_.velocity = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
-    // ROS_INFO("gogogo");
     lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude,odometry_.imu_attitude);
 }
 void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
@@ -711,8 +725,8 @@ void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     odometry_.attitude.z() = msg->pose.pose.orientation.z;
     odometry_.attitude.w() = msg->pose.pose.orientation.w;
 
-    Eigen::Vector3d base_link_vel = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
-    odometry_.velocity = odometry_.attitude * base_link_vel; // body frame to world frame
+    Eigen::Vector3d baselink_vel = Eigen::Vector3d(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
+    odometry_.velocity = odometry_.attitude * baselink_vel; // body frame to world frame
     lin_controller.set_status(odometry_.position, odometry_.velocity, odometry_.rate, odometry_.attitude,odometry_.imu_attitude);
 
     nav_msgs::Odometry world_odom;
@@ -734,10 +748,4 @@ void MavrosUtils::mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     world_odom.twist.twist.angular.z = odometry_.rate(2);
 
     world_odom_pub_.publish(world_odom); // 发布世界坐标系下的odom
-}
-
-void MavrosUtils::mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg)
-{
-    Eigen::Vector3d thrust_world = odometry_.attitude * Eigen::Vector3d(0, 0, ctrl_cmd_.thrust);
-    Eigen::Vector3d acc_world = odometry_.attitude * odometry_.acc;
 }

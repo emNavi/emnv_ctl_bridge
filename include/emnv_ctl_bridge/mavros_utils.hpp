@@ -14,6 +14,7 @@
 #include <strings.h>
 #include <Eigen/Eigen>
 #include <std_msgs/String.h> 
+#include <std_msgs/Empty.h>
 #include "emnv_ctl_bridge/linear_controller.hpp"
 #include "emnv_ctl_bridge/my_math.hpp"
 #include "emnv_ctl_bridge/Px4AttitudeController.hpp"
@@ -39,7 +40,6 @@ extern std::map<std::string, CmdPubType> cmdPubMap;
 extern std::map<std::string, CtrlMode> ctrlModeMap;
 
 
-extern ParamsParse params_parse;
 class MavContext
 {
 private:
@@ -55,6 +55,7 @@ public:
 
     };
     ros::Time last_recv_odom_time;
+    ros::Time last_recv_imu_data_time;
     bool is_offboard=false; 
     bool connected = false;
     bool armed = false;
@@ -115,6 +116,7 @@ private:
     // ==================  Node  ==================
     // Subscribe Mavros Msg
     ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub,super_target_sub;
+    ros::Subscriber update_ctrl_params_sub;
     ros::Publisher world_odom_pub_;
     // Subscribe Ctrl Command
     ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
@@ -144,6 +146,7 @@ public:
     MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse);
     ~MavrosUtils();
 
+    ParamsParse params_parse_;
     MavContext context_;
     Odometry odometry_;
     CtrlCommand ctrl_cmd_;
@@ -151,12 +154,13 @@ public:
 
     LinearControl lin_controller;
     // ==================  Callback  ==================
+    void mavUpdateCtrlParamsCallback(const std_msgs::Empty::ConstPtr &msg);
+
     void mavStateCallback(const mavros_msgs::State::ConstPtr &msg);
     void mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
-    void mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
     // void TargetPvayCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
     void mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name);
     void mavLandCallback(const std_msgs::String::ConstPtr& msg, std::string name);
@@ -224,6 +228,8 @@ public:
     void ctrl_loop();
 
     int set_bridge_mode(std::string ctrl_mode_str, std::string cmd_pub_type_str);
+
+    bool updateCtrlParams(bool is_reload_yaml = false);
 
 
 };

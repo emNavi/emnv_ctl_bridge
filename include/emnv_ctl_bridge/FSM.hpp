@@ -80,6 +80,7 @@ public:
         last_try_arm_time = ros::Time::now() - ros::Duration(4);
         last_try_land_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
         last_recv_odom_time = ros::Time::now() - ros::Duration(TIME_OFFSET_SEC);
+        
         ROS_INFO("init FSM");
     }
     std::string getStatusMsg()

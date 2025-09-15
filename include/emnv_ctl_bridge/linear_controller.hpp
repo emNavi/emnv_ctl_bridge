@@ -157,7 +157,7 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     
 
     double sin = std::sin(des_yaw);
-    double cos = std::cos(des_yaw); // 不是 当前里程计的值，与px4的逻辑有关
+    double cos = std::cos(des_yaw); // NOTE: 这里是期望姿态
     roll = (_des_acc(0) * sin - _des_acc(1) * cos) / CONSTANTS_ONE_G;
     pitch = (_des_acc(0) * cos + _des_acc(1) * sin) / CONSTANTS_ONE_G;
     if (std::abs(roll) > _max_tile_rad) {

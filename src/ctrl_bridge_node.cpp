@@ -22,11 +22,11 @@
 
 
 MavrosUtils* mavros_utils_ptr = nullptr;
-ParamsParse params_parse;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "emnv_ctl_bridge");
     ros::NodeHandle nh("~");
+    ParamsParse params_parse;
     params_parse.ros_namespace = ros::this_node::getNamespace();
     CmdPubType ctrl_pub_level;
     nh.param<double>("takeoff_height", params_parse.takeoff_height, 0.3);
