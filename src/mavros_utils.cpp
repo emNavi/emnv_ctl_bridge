@@ -99,6 +99,13 @@ bool MavrosUtils::updateCtrlParams(bool is_reload_yaml)
         a_gain << lin_gain["Kaxy"].as<double>(), lin_gain["Kaxy"].as<double>(), lin_gain["Kaz"].as<double>();
         lin_controller.set_gains(p_gain, v_gain, a_gain);
         lin_controller.set_max_tile(config["linear_controller"]["max_tile_deg"].as<double>());
+
+
+        Eigen::Vector3d extra_v_gain, extra_a_gain;
+        auto extra_gain = config["px4_internal_ctrl_extra_params"]["gain"];
+        extra_v_gain << extra_gain["kvxy_extra"].as<double>(), extra_gain["kvxy_extra"].as<double>(), extra_gain["kvz_extra"].as<double>();
+        extra_a_gain << extra_gain["kaxy_extra"].as<double>(), extra_gain["kaxy_extra"].as<double>(), extra_gain["kaz_extra"].as<double>();
+        lin_controller.setExtraGain(extra_v_gain, extra_a_gain);
         auto atti_gain = config["atti_controller"]["gain"];
         atti_controller_.set_pid_params(Eigen::Vector3d(atti_gain["Kx"].as<double>(), atti_gain["Ky"].as<double>(), atti_gain["Kz"].as<double>()));
         if(!is_reload_yaml)
@@ -421,7 +428,7 @@ void MavrosUtils::ctrl_loop()
 
             if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
-                lin_controller.smooth_move(des_takeoff_pos, 0.5, context_.last_state_yaw, 0.01);
+                lin_controller.smooth_move(des_takeoff_pos, 1.0, context_.last_state_yaw, 0.01);
                 ctrl_cmd_.thrust = lin_controller.thrust_exp;
                 if (ctrl_level == CmdPubType::RATE)
                     ctrl_cmd_.rate = atti_controller_.update(odometry_.attitude, lin_controller.q_exp);
@@ -493,15 +500,23 @@ void MavrosUtils::ctrl_loop()
 
                 Eigen::Vector3d extra_vel_gain;
                 Eigen::Vector3d extra_acc_gain;
+                ctrl_cmd_.velocity = ctrl_cmd_.feedforward_vel; // 位置环 P 控制
+                ctrl_cmd_.acceleration = ctrl_cmd_.feedforward_acc; // 速度环 P 控制
+                // lin_controller.getExtraGain(extra_vel_gain, extra_acc_gain);
+                
+                // ctrl_cmd_.velocity = extra_vel_gain.asDiagonal() * pos_err + ctrl_cmd_.feedforward_vel; // 位置环 P 控制
+                // Eigen::Vector3d vel_err = ctrl_cmd_.velocity - odometry_.velocity;
+                // ctrl_cmd_.acceleration = extra_acc_gain.asDiagonal() * vel_err + ctrl_cmd_.feedforward_acc; // 速度环 P 控制
+                // ctrl_cmd_.velocity = Eigen::Vector3d::Zero();
+                // ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
+                // Eigen::Vector3d world_vel = ctrl_cmd_.feedforward_vel;
+                // ctrl_cmd_.velocity  = odometry_.attitude.inverse() * world_vel; // body frame to world frame
+                // ctrl_cmd_.acceleration = Eigen::Vector3d::Zero();
 
-                lin_controller.getExtraGain(extra_vel_gain, extra_acc_gain);
-                ctrl_cmd_.velocity = extra_vel_gain.asDiagonal() * pos_err + ctrl_cmd_.feedforward_vel; // 位置环 P 控制
-                Eigen::Vector3d vel_err = ctrl_cmd_.velocity - odometry_.velocity;
-                ctrl_cmd_.acceleration = extra_acc_gain.asDiagonal() * vel_err + ctrl_cmd_.feedforward_acc; // 速度环 P 控制
             }
             else if (ctrl_level == CmdPubType::RATE || ctrl_level == CmdPubType::ATTI)
             {
-                ctrlUpdate(ctrl_cmd_.position, ctrl_cmd_.velocity, ctrl_cmd_.acceleration, ctrl_cmd_.yaw, 0.01); // dt
+                ctrlUpdate(ctrl_cmd_.position, ctrl_cmd_.feedforward_vel, ctrl_cmd_.feedforward_acc, ctrl_cmd_.yaw, 0.01); // dt
             }
         }
 
@@ -741,7 +756,7 @@ void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
         ROS_WARN("IMU dt is too large");
         return;
     }
-    if (ctrl_cmd_.thrust > 0.1)
+        if (ctrl_cmd_.thrust > 0.1)
     {
         hover_thrust_ekf_->predict(dt); // dt
         hover_thrust_ekf_->fuseAccZ(odometry_.acc(2) - CONSTANTS_ONE_G, ctrl_cmd_.thrust);

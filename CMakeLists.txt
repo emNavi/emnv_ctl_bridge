@@ -51,6 +51,7 @@ add_executable(traj_test src/traj_test.cpp src/polynomial_traj.cpp)
 add_dependencies(traj_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(traj_test
   ${catkin_LIBRARIES}
+  yaml-cpp
 )
 
 set(SETUP_BASH_FILE "${CMAKE_BINARY_DIR}/../devel/setup.bash")

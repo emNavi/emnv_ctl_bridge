@@ -1,0 +1,15 @@
+is_loop_mode: true  
+max_vel: 1.5 # /* m/s */
+max_acc: 1 # /* m/s^2 */
+max_jerk: 6 # /* m/s^3 */
+average_speed: 1.0 # /* m/s */
+pub_time_step: 0.1 # /* second */
+key_point:
+  # x y z , segment time
+  - [0.0, 0.0, 2.0]
+  - [10.0, 0.0, 2.0]
+  - [0.0, 0.0, 2.0]
+  - [4.0, 2.0, 2.0]
+  - [3.0, 2.0, 2.0]
+  - [0.0, 1.0, 2.0]
+  - [0.0, 0.0, 2.0]

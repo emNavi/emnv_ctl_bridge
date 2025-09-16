@@ -6,13 +6,16 @@
     <arg name = "ctrl_pub_level" default = "POSY"/>
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
-    <arg name="fcu_url" default = "/dev/ttyACM0:921600"/>
-    <!-- <arg name="fcu_url" value="udp://:14560@127.0.0.1:1857"/> -->
+    <!-- <arg name="fcu_url" default = "/dev/ttyACM0:921600"/> -->
+    <arg name="fcu_url" value="udp://:14560@127.0.0.1:1857"/>
 
     <arg name="gcs_udp_ip" default = ""/>
     <arg name="tgt_system" default = "1"/>
 
     <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
+        <arg name="pos_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/pos_sp_cmd"/>
+        <arg name="atti_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/atti_sp_cmd"/>
+        <arg name="rate_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/rate_sp_cmd"/>
         <arg name="drone_id" value="$(arg drone_id)"/>
         <arg name="drone_type" value="$(arg drone_type)"/>
         <arg name="takeoff_height" value="$(arg takeoff_height)"/>

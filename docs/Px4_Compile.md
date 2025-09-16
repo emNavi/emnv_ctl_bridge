@@ -55,19 +55,27 @@ TODO
 
 默认情况下px4的定位精度比较差，对于对精度要求高的任务无法满足，我们可以降低仿真器中传感器的噪声以提高定位精度
 ### 关闭gps噪声
-在`Tools/simulation/gazebo-classic/sitl_gazebo-classic/src/gazebo_gps_plugin.cpp`中，注释掉Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/gps/gps.sdf 中
+
+> 在`Tools/simulation/gazebo-classic/sitl_gazebo-classic/src/gazebo_gps_plugin.cpp`中，
+
+
+
+注释掉Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/gps/gps.sdf 中
 ```bash
 <!-- <gpsNoise>true</gpsNoise> -->
 ```
 在`Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/iris/iris.sdf` 中降低噪声
-```bash
-<gyroscopeNoiseDensity>0.000018665</gyroscopeNoiseDensity>
-<gyroscopeRandomWalk>3.8785e-08</gyroscopeRandomWalk>
-<gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
-<gyroscopeTurnOnBiasSigma>0.00087</gyroscopeTurnOnBiasSigma>
-<accelerometerNoiseDensity>0.000186</accelerometerNoiseDensity>
-<accelerometerRandomWalk>0.00006</accelerometerRandomWalk>
-<accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
-<accelerometerTurnOnBiasSigma>0.00196</accelerometerTurnOnBiasSigma>
+```xml
+   <gyroscopeNoiseDensity>0.0000065</gyroscopeNoiseDensity>
+   <gyroscopeRandomWalk>3.8785e-08</gyroscopeRandomWalk>
+   <gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
+   <gyroscopeTurnOnBiasSigma>0.000087</gyroscopeTurnOnBiasSigma>
+   <accelerometerNoiseDensity>0.0000186</accelerometerNoiseDensity>
+   <accelerometerRandomWalk>0.00006</accelerometerRandomWalk>
+   <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
+   <accelerometerTurnOnBiasSigma>0.0000196</accelerometerTurnOnBiasSigma>
 ```
+
+
+
 <!-- > 并不是单一参数导致的 -->

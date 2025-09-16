@@ -138,17 +138,19 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
     {
 
         Eigen::Vector3d des_position_error = des_position - _pos_world;
-        if( des_position_error.norm() > 5)
-        {
-            des_position_error = des_position_error.normalized() * 5; // 限制位置误差
-        }
-        exp_lin_vel += _gain_p.asDiagonal()*(des_position_error);
+        // if( des_position_error.norm() > 5)
+        // {
+        //     des_position_error = des_position_error.normalized() * 5; // 限制位置误差
+        // }
+
+        exp_lin_vel = _gain_p.asDiagonal()*(des_position_error);
         if(exp_lin_vel.norm()  > 10)
         {
             exp_lin_vel = exp_lin_vel.normalized() *10; // 限制期望速度
         }
-        Eigen::Vector3d diag = Eigen::Vector3d(0.2, 0.2, 0.6).cwiseProduct(_gain_v);
-        des_acc += diag.asDiagonal()*(exp_lin_vel - _vel_world);
+
+        des_acc += _gain_v_extra.asDiagonal()*(exp_lin_vel - _vel_world);
+        // ROS_INFO_STREAM("_gain_v_extra: "<<_gain_v_extra.transpose());
     }
     if(ctrl_mask & CTRL_MASK::VEL)
     {
