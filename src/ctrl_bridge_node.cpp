@@ -35,7 +35,7 @@ int main(int argc, char **argv)
     nh.getParam("ctrl_mode", params_parse.ctrl_mode);
 
     nh.param<double>("loop_rate", params_parse.loop_rate, 100.0);
-    nh.getParam("drone_id", params_parse.name);
+    nh.getParam("drone_id", params_parse.drone_id);
 
     nh.param<bool>("enable_imu_dt_check", params_parse.enable_imu_dt_check, true);
     nh.param<bool>("enable_odom_timeout_check", params_parse.enable_odom_timeout_check, true);

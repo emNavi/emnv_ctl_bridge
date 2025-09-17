@@ -201,9 +201,9 @@ public:
 
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
     // void TargetPvayCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
-    void mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, std::string name);
-    void mavLandCallback(const std_msgs::String::ConstPtr &msg, std::string name);
-    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, std::string name);
+    void mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
+    void mavLandCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
+    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
 
     void mavVisionPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);

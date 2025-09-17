@@ -72,9 +72,9 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     arming_client_ = _nh.serviceClient<mavros_msgs::CommandBool>(params_parse_.ros_namespace + "/mavros/cmd/arming");
     set_mode_client_ = _nh.serviceClient<mavros_msgs::SetMode>(params_parse_.ros_namespace + "/mavros/set_mode");
 
-    takeoff_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/takeoff", 1000, boost::bind(&MavrosUtils::mavTakeoffCallback, this, _1, params_parse_.name));
-    land_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/land", 1000, boost::bind(&MavrosUtils::mavLandCallback, this, _1, params_parse_.name));
-    cmd_vaild_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/cmd_vaild", 1000, boost::bind(&MavrosUtils::mavCmd_vaildCallback, this, _1, params_parse_.name));
+    takeoff_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/takeoff", 1000, boost::bind(&MavrosUtils::mavTakeoffCallback, this, _1, params_parse_.drone_id));
+    land_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/land", 1000, boost::bind(&MavrosUtils::mavLandCallback, this, _1, params_parse_.drone_id));
+    cmd_vaild_sub = _nh.subscribe<std_msgs::String>("/emnavi_cmd/cmd_vaild", 1000, boost::bind(&MavrosUtils::mavCmd_vaildCallback, this, _1, params_parse_.drone_id));
     update_ctrl_params_sub = _nh.subscribe<std_msgs::Empty>("/emnavi_cmd/update_ctrl_params", 1, &MavrosUtils::mavUpdateCtrlParamsCallback, this);
 
     bridge_status_pub = _nh.advertise<std_msgs::String>("bridge_status", 10);
@@ -684,36 +684,39 @@ void MavrosUtils::mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr
     vision_pose_pub.publish(modified_msg);
 }
 
-void MavrosUtils::mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, std::string name)
+void MavrosUtils::mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, int drone_id)
 {
     std::string received_string = msg->data;
-    // std::debug << "Takeoff cmd received: " << received_string << std::endl;
-    // std::debug << "Vehicle name: " << name << std::endl;
-    if (received_string.find(name) != std::string::npos)
+    // std::cout << "Takeoff cmd received: " << received_string << std::endl;
+    // std::cout << "Vehicle name: " << name << std::endl;
+    if (received_string.find(std::to_string(drone_id)) != std::string::npos || 
+        received_string.find("all") != std::string::npos)
     {
-        ROS_INFO("%s: Received takeoff command", name.c_str());
+        ROS_INFO("%s: Received takeoff command", std::to_string(drone_id).c_str());
         fsm.setFlag("recv_takeoff_cmd", true);
         fsm.setFlag("recv_land_cmd", false);
     }
 }
 
-void MavrosUtils::mavLandCallback(const std_msgs::String::ConstPtr &msg, std::string name)
+void MavrosUtils::mavLandCallback(const std_msgs::String::ConstPtr &msg, int drone_id)
 {
     std::string received_string = msg->data;
-    if (received_string.find(name) != std::string::npos)
+    if (received_string.find(std::to_string(drone_id)) != std::string::npos || 
+        received_string.find("all") != std::string::npos)
     {
-        ROS_INFO("Received land command");
+        ROS_INFO("%s: Received land command", std::to_string(drone_id).c_str());
         fsm.setFlag("recv_takeoff_cmd", false);
         fsm.setFlag("recv_land_cmd", true);
     }
 }
 
-void MavrosUtils::mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, std::string name)
+void MavrosUtils::mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, int drone_id)
 {
     std::string received_string = msg->data;
-    if (received_string.find(name) != std::string::npos)
+    if (received_string.find(std::to_string(drone_id)) != std::string::npos || 
+        received_string.find("all") != std::string::npos)
     {
-        ROS_INFO("Received cmd command");
+        ROS_INFO("%s: Received cmd command", std::to_string(drone_id).c_str());
         fsm.setFlag("cmd_vaild", true);
     }
 }
