@@ -7,7 +7,6 @@
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
     <arg name="fcu_url" default = "/dev/ttyACM0:921600"/>
-    <!-- <arg name="fcu_url" value="udp://:14560@127.0.0.1:1857"/> -->
 
     <arg name="gcs_udp_ip" default = ""/>
     <arg name="tgt_system" default = "1"/>
