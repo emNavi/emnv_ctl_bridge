@@ -183,14 +183,16 @@ inline void LinearControl::update(Eigen::Vector3d  &des_position,Eigen::Vector3d
         pitch = (pitch > 0 ? 1 : -1) * _max_tile_rad;
     }
 
-    q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
-     Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
-     Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    // q_exp = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
+    //  Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
+    //  Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
 
     Eigen::Quaterniond q_exp_w;
     q_exp_w = Eigen::AngleAxisd(des_yaw, Eigen::Vector3d::UnitZ()) *
      Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) * 
      Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    //  imu2world * world2body * body2world_des = imu2world_des
+
     q_exp =   _q_imu_world * _q_world.inverse() *q_exp_w;
 }
 inline void LinearControl::smooth_move_init()

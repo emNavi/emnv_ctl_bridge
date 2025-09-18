@@ -42,7 +42,7 @@
     <include file="$(find mavros)/launch/px4.launch" >
         <arg name="fcu_url" value="$(arg fcu_url)"/>
         <arg name="tgt_system" value="$(arg tgt_system)"/>
-        <!-- <arg name="gcs_udp_url" value="$(arg udp:gcs_udp_ip_and_port)"/> -->
+        <arg name="gcs_url" value="$(arg gcs_udp_ip_and_port)"/>
         <arg name="log_output" value="log"/>
     </include>
 </launch>

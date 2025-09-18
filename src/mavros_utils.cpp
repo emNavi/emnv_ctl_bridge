@@ -48,6 +48,7 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
         vision_pose_pub = _nh.advertise<geometry_msgs::PoseStamped>("vrpn_convert_pose", 10);
     }
 
+    acc_fusion_ = new AccelerationFusion(50.0, 3.0, 10.0, 1.0, 0.7, 0.3);
     // params_parse.ros_namespace + "/mavros/vision_pose/pose"
     // local_position 消息
     if (params_parse_.ref_odom_topic.find("mavros/local_position") != std::string::npos) {
@@ -744,6 +745,7 @@ void MavrosUtils::mavExtendedStateCallback(const mavros_msgs::ExtendedState::Con
 }
 void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
 {
+
     Eigen::Vector3d baselink_acc = Eigen::Vector3d(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
     odometry_.imu_attitude.x() = msg->orientation.x;
     odometry_.imu_attitude.y() = msg->orientation.y;
@@ -759,21 +761,53 @@ void MavrosUtils::mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg)
         ROS_WARN("IMU dt is too large");
         return;
     }
-        if (ctrl_cmd_.thrust > 0.1)
+
+    #define ACC_MODE
+    #ifdef ACC_MODE
+    // std::cout << "gogog"<<std::endl;
+    if (ctrl_cmd_.thrust > 0.1)
     {
         hover_thrust_ekf_->predict(dt); // dt
         hover_thrust_ekf_->fuseAccZ(odometry_.acc(2) - CONSTANTS_ONE_G, ctrl_cmd_.thrust);
         _hover_thrust = hover_thrust_ekf_->getHoverThrust();
     }
+    // 记录最近的odometry_.pos(2) 
     // hover_thrust_ekf_->printLog();
     std_msgs::Float64 hover_thrust_msg;
     hover_thrust_msg.data = _hover_thrust;
     hover_thrust_pub_.publish(hover_thrust_msg);
     lin_controller.set_hover_thrust(_hover_thrust);
+    #endif
+
+    // #ifndef ACC_MODE
+    // // // 收集最近2s的imu数据
+    // acc_fusion_->addDataPoint(msg->header.stamp.toSec(),odometry_.position(2),odometry_.acc(2) - CONSTANTS_ONE_G);
+    // static double last_fusion_time = 0;
+    // if(acc_fusion_->getDataDuration() > 3.0 && (msg->header.stamp.toSec() - last_fusion_time) > 3.0)
+    // {
+    //     std::vector<double> time_vec, acc_vec;
+    //     acc_fusion_->update(time_vec, acc_vec);
+    //     last_fusion_time = msg->header.stamp.toSec();
+    //     for (int i = 0; i < time_vec.size(); i++)
+    //     {
+    //         // std::cout << "time: " << time_vec[i] << " acc: " << acc_vec[i] << std::endl;
+    //         hover_thrust_ekf_->predict(time_vec[i]);
+    //         hover_thrust_ekf_->fuseAccZ(acc_vec[i], ctrl_cmd_.thrust);
+
+    //     }
+    //     _hover_thrust = hover_thrust_ekf_->getHoverThrust();
+    //     std_msgs::Float64 hover_thrust_msg;
+    //     hover_thrust_msg.data = _hover_thrust;
+    //     hover_thrust_pub_.publish(hover_thrust_msg);
+    //     lin_controller.set_hover_thrust(_hover_thrust);
+    // }
+    // #endif
 }
 
 void MavrosUtils::mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 {
+    // ROS_INFO("%s mavRefOdomCallback Current State: %s", params_parse.name.c_str(), fsm.getStatusMsg().c_str());
+    
     fsm.updateOdomTimestamp(msg->header.stamp);
     odometry_.position = Eigen::Vector3d(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
     odometry_.rate = Eigen::Vector3d(msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z);

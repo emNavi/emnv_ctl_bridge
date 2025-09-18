@@ -24,6 +24,8 @@
 #include "emnv_ctl_bridge/FSM.hpp"
 #include "emnv_ctl_bridge/PvayCommand.h"
 
+#include "emnv_ctl_bridge/acc_filter.hpp"
+
 enum class CtrlMode {
     QUAD_T,
     RATE_T,
@@ -191,6 +193,7 @@ public:
     CtrlFSM fsm;
 
     LinearControl lin_controller;
+    AccelerationFusion* acc_fusion_;
     // ==================  Callback  ==================
     void mavUpdateCtrlParamsCallback(const std_msgs::Empty::ConstPtr &msg);
 

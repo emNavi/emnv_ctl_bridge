@@ -1,7 +1,7 @@
 <launch>
     <node name = "traj_test" pkg = "emnv_ctl_bridge" type = "traj_test" output = "screen" required="false">
         <remap from="~bridge_status" to="/ctrl_bridge_1/bridge_status"/>
-        <remap from="~cmd" to="/drone_1_planning/pos_sp_cmd"/>
+        <remap from="~cmd" to="/drone_1_planning/pos_cmd"/>
         <param name="traj_config_file" value="$(find emnv_ctl_bridge)/config/ploy_traj/test.yaml"/>
     </node> 
 </launch>
