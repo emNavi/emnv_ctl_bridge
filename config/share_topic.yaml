@@ -1,0 +1,16 @@
+netcard_name: "wlp5s0"  
+# 所有节点的通讯端口需要一致
+discover_port: 32946  # 发现端口
+zmq_pub_port: 32945  # zmq通讯端口
+# topic 仅能在 share sub pub 间选择一种，不能重复
+share_topic:
+  /mavros/local_position/odom: "nav_msgs/Odometry"
+  /mavros/imu/data: "sensor_msgs/Imu"
+  /mavros/imu/mag: "sensor_msgs/MagneticField"
+  /mavros/imu/static_transform: "geometry_msgs/TransformStamped"
+# 程序分辨 / 符号，请不要落下
+zmq_pub_only_topic_prefix: "/drone1"
+zmq_pub_only_topic:
+  /ctrl_bridge/world_odom: "nav_msgs/Odometry"
+zmq_sub_only_topic:
+  /ctrl_bridge/world_odom: "nav_msgs/Odometry"

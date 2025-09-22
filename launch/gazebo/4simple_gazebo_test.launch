@@ -1,0 +1,67 @@
+<launch>
+    <arg name = "drone_id" default = "iris_0"/>
+    <arg name = "takeoff_height" default = "1.1"/>
+
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "POSY"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <group ns="iris_0">
+        <node name = "ctrl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+            <remap from="~pos_sp_cmd" to="/traj_test/cmd"/>
+            <!-- <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/> -->
+            
+            <remap from="~ref_odom" to="/iris_0/mavros/local_position/odom"/>
+            <!-- <remap from="~ref_odom" to="/fastlio_odom"/> -->
+            <!-- <remap from="/mavros/imu/data" to="/iris_0/imu_gazebo"/> -->
+            <remap from="/mavros/imu/data" to="/iris_0/mavros/imu/data"/>
+
+            <!-- <remap from="~ref_odom" to="/iris_0/mavros/local_position/odom"/> -->
+            <!-- Warning: /mavros/local_position/odom 的vel 是机体坐标系的，需要坐标转换，请将enable_vel_transpose_b2w设置为true -->
+            <param name ="enable_vel_transpose_b2w" value="false"/>
+            <param name ="enable_imu_dt_check" value="false"/>
+            <param name ="enable_odom_timeout_check" value="false"/>
+            <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
+            
+            <param name ="drone_id" value="$(arg drone_id)"/>
+            <param name ="takeoff_height" value="$(arg takeoff_height)"/>
+            <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+            <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
+        </node> 
+
+    <!-- 不要使用GSC_URL -->
+    <!-- v1.13.3 版本对应的 gazebo 有问题，无法起飞 -->
+        <include file="$(find mavros)/launch/px4.launch" >
+            <arg name="fcu_url" value="udp://:24540@localhost:34580"/>
+            <arg name="log_output" value="log"/>
+        </include>
+    </group>
+</launch>
+<!-- export ROS_IP=192.168.2.2      # 本机主机名（或 IP）
+export ROS_MASTER_URI=http://192.168.2.2:11311
+
+sudo iptables -t nat -A POSTROUTING -o enp5s0 -j MASQUERADE
+sudo iptables -A FORWARD -i eth0 -o enp5s0 -j ACCEPT
+sudo iptables -A FORWARD -i enp5s0 -o eth0 -m state state RELATED,ESTABLISHED -j ACCEPT
+
+sudo ip route add default via 192.168.2.2
+sudo bash -c 'echo nameserver 8.8.8.8 > /etc/resolv.conf'
+
+export http_proxy=http://192.168.8.192:7897
+export https_proxy=http://192.168.8.192:7897
+
+emnavi@nvidia-desktop:~/Desktop$ ls -lh ~/.config/jtop/config.json
+ls: cannot access '/home/emnavi/.config/jtop/config.json': No such file or directory
+emnavi@nvidia-desktop:~/Desktop$ sudo find /etc /home -name "config.json" | grep jtop
+[sudo] password for emnavi: 
+emnavi@nvidia-desktop:~/Desktop$ sudo find /etc /home -name "config.json" | grep jtop
+emnavi@nvidia-desktop:~/Desktop$ find / -name config.json 2>/dev/null | grep jtop
+/usr/local/jtop/config.json
+emnavi@nvidia-desktop:~/Desktop$ sudo rm -f /usr/local/jtop/config.json
+emnavi@nvidia-desktop:~/Desktop$ sudo systemctl restart jtop.service
+emnavi@nvidia-desktop:~/Desktop$ jtop
+ 
+curl -L https://github.com/cysic-labs/cysic-phase3/releases/download/v1.0.0/setup_linux.sh > ~/setup_linux.sh && bash ~/setup_linux.sh 0x168a89CA4f191061fb362bD71157Edcb177A8838 
+-->

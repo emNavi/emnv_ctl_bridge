@@ -1,4 +1,5 @@
-#include "ctrl_bridge/hover_thrust_ekf.hpp"
+// 仅用于测试悬停油门估计的EKF
+#include "emnv_ctl_bridge/hover_thrust_ekf.hpp"
 #include <random>
 #include <cmath>
 #include <iostream>

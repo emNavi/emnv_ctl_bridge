@@ -1,0 +1,29 @@
+px4_internal_ctrl_extra_params:
+  gain:
+    # kvxy_extra: 0.0
+    # kvz_extra: 0.0
+    # kaxy_extra:  0.0
+    # kaz_extra: 0.0
+    kvxy_extra: 1
+    kvz_extra: 0.0
+    kaxy_extra:  1
+    kaz_extra: 0.0
+linear_controller:
+  gain:
+    Kpxy: 9
+    Kpz: 6
+    Kvxy: 3
+    Kvz: 3
+    Kaxy: 0.6
+    Kaz: 0.5
+  max_tile_deg: 40 # deg
+hover_thrust_ekf:
+  init_hover_thrust: 0.1 # X152b 4s 2300mah use 0.3
+  hover_thrust_max: 0.5
+  hover_thrust_noise: 0.1
+  process_noise: 0.04 #
+atti_controller:
+  gain:
+    Kx: 1.5
+    Ky: 1.5
+    Kz: 1.5

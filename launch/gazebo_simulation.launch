@@ -1,38 +1,24 @@
 <launch>
     <arg name = "drone_id" default = "1"/>
+    <arg name = "drone_id" default = "iris"/>
     <arg name = "takeoff_height" default = "1.2"/>
-    <arg name = "in_real" default="true" />
     <!-- RATE,ATTI,POSY  -->
-
-    <arg name = "loop_rate" default = "57"/><!--未知bug rate = rate*1.76 ,故需要 rate/1.76 -->
-    <arg name = "cmd_pub_type" default = "POSY"/>
-    <arg name = "ctrl_out_level" default = "POSY"/>
-
+    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <arg name = "ctrl_mode" default = "POSY"/>
     <arg name = "uav_type" value = "iris"/>
-    <arg name = "runnig_false" value = "1"/>
-    <arg name = "FSM_RESET_flage" value = "0"/>
-    <arg name = "type_mask_flage" value = "3"/>
-
-    <param name ="runnig_false" value="$(arg runnig_false)"/>
-    <param name ="FSM_RESET_flage" value="$(arg FSM_RESET_flage)"/>
-    <param name ="type_mask_flage" value="$(arg type_mask_flage)"/>
     
-    <param name ="Test_pz" value="0.0"/>
-    <param name ="Test_pz" value="0.0"/>
-    <param name ="Test_pz" value="1.2"/>
-    <param name ="Test_yaw" value="0.1"/>
-
-    <node name = "ctrl_bridge" pkg = "ctrl_bridge" type = "ctrl_bridge" output = "screen" required="true">
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <node name = "ctrl_bridge" pkg = "emnv_ctl_bridge" type = "ctrl_bridge" output = "screen" required="true">
         <!-- choose One -->
         <!-- <remap from="~vel_sp_sub" to="/airgym/cmd"/> -->
         <!-- <remap from="~rate_sp_sub" to="/airgym/cmd"/> -->
         <!-- <remap from="~atti_sp_sub" to="/airgym/cmd"/> -->
-        <!-- <remap from="~pos_sp_cmd" to="$(arg uav_type)_0/mavros/super_attitude" />  -->
-        <remap from="~vrpn_pose" to="/vrpn_client_node/emnavi0000/pose"/>
-        <param name ="loop_rate" value="$(arg loop_rate)"/>
+        <remap from="~pos_sp_cmd" to="$(arg uav_type)_0/mavros/super_attitude" /> 
+        <remap from="~ref_odom" to="/mavros/local_position/odom"/>
+        <param name ="enable_vel_transpose_b2w" value="true"/>
+        
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
         <param name ="cmd_pub_type" value="$(arg cmd_pub_type)"/>
-        <param name ="ctrl_out_level" value="$(arg ctrl_out_level)"/>
         <!-- <remap from="~vrpn_pose" to="$(arg uav_type)_0/mavros/vision_pose/pose"/> -->
         <param name ="drone_id" value="$(arg drone_id)"/>
         <param name ="takeoff_height" value="$(arg takeoff_height)"/>
@@ -44,7 +30,11 @@
         <remap from="mavros/cmd/arming" to="$(arg uav_type)_0/mavros/cmd/arming"/>
         <remap from="mavros/set_mode" to="$(arg uav_type)_0/mavros/set_mode"/>
 
-        <remap from="/mavros/super_attitude" to="$(arg uav_type)_0/mavros/super_attitude"/>
+        <param name ="drone_config_path" value="$(find emnv_ctl_bridge)/config/drone_gazebo_iris.yaml"/>
+        <param name ="drone_id" value="$(arg drone_id)"/>
+        <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <!-- <remap from="/mavros/super_attitude" to="$(arg uav_type)_0/mavros/super_attitude"/> -->
+        <remap from="/mavros/super_attitude" to="drone_1_planning/pos_cmd"/>
         <remap from="/mavros/setpoint_raw/local" to="$(arg uav_type)_0/mavros/setpoint_raw/local"/>
     </node> 
 
@@ -56,7 +46,7 @@
 		args="5 fast_lio mapping_mid360.launch "
 		name="timed_fastlio_roslaunch" output="log" /> -->
 
-    <!-- <include file="$(find px4)/launch/indoor1.launch" /> -->
+    <!-- <include file="$(finad px4)/launch/indoor1.launch" /> -->
      
     <!-- 
         rostopic pub /emnavi_cmd/takeoff std_msgs/String "data:"drone1"" 

@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Posix SITL environment launch script -->
+    <!-- launches PX4 SITL, Gazebo environment, and spawns quadrotor -->
+
+    <!-- gazebo configs -->
+    <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/empty.world"/>
+    <arg name="gui" default="true"/>
+    <arg name="debug" default="false"/>
+    <arg name="verbose" default="false"/>
+    <arg name="paused" default="false"/>
+    <arg name="respawn_gazebo" default="false"/>
+
+    <!-- Gazebo sim -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="world_name" value="$(arg world)"/>
+        <arg name="debug" value="$(arg debug)"/>
+        <arg name="verbose" value="$(arg verbose)"/>
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+    </include>
+
+    <!-- vehicle pose -->
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>
+    <arg name="z" default="0"/>
+    <arg name="R" default="0"/>
+    <arg name="P" default="0"/>
+    <arg name="Y" default="0"/>
+    <!-- vehicle model and world -->
+    <arg name="est" default="ekf2"/>
+    <arg name="vehicle" default="iris"/>
+    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg vehicle)/$(arg vehicle).sdf"/>
+    <env name="PX4_SIM_MODEL" value="gazebo-classic_$(arg vehicle)" />
+
+    <!-- PX4 configs -->
+    <arg name="interactive" default="true"/>
+    <!-- PX4 SITL -->
+    <arg unless="$(arg interactive)" name="px4_command_arg1" value="-d"/>
+    <arg     if="$(arg interactive)" name="px4_command_arg1" value=""/>
+    <node name="sitl" pkg="px4" type="px4" output="screen"
+        args="$(find px4)/build/px4_sitl_default/etc -s etc/init.d-posix/rcS $(arg px4_command_arg1)" required="true"/>
+
+    <!-- gazebo model -->
+    <node name="$(anon vehicle_spawn)" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sdf) -model $(arg vehicle) -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg R) -P $(arg P) -Y $(arg Y)"/>
+   
+    <!-- launches MAVROS and emnv_ctl_bridge -->
+    <!-- emnv_ctl_bridge configs -->
+    <arg name = "drone_id" default = "1"/>
+    <arg name = "drone_type" default = "gazebo_iris"/>
+    <arg name = "takeoff_height" default = "2.0"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "ATTI"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+    <!-- MAVROS configs -->
+    <arg name="fcu_url" default="udp://:14540@127.0.0.1:14550"/>
+    <arg name="tgt_system" default="1" />
+
+    <!-- sim time -->
+    <param name="/use_sim_time" type="bool" value="true"/>
+    
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+    <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
+        <arg name="pos_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/pos_sp_cmd"/>
+        <arg name="atti_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/atti_sp_cmd"/>
+        <arg name="rate_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/rate_sp_cmd"/>
+        <arg name="drone_id" value="$(arg drone_id)"/>
+        <arg name="drone_type" value="$(arg drone_type)"/>
+        <arg name="takeoff_height" value="$(arg takeoff_height)"/>
+        <arg name="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <arg name="ctrl_mode" value="$(arg ctrl_mode)"/>
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="gcs_udp_ip_and_port" value="127.0.0.1:14550"/>
+        <arg name="tgt_system" value="$(arg tgt_system)"/>
+        <!-- <arg name="gcs_udp_ip_and_port" value="udp://@$(arg gcs_udp_ip):14550"/> -->
+        <arg name="ref_odom_topic" value="/mavros/local_position/odom"/>
+    </include>
+
+    <node name = "gazebo_force_exit" pkg = "emnv_ctl_bridge" type = "gazebo_force_exit.py" output = "screen" />
+
+
+</launch>

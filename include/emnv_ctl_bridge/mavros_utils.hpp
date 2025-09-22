@@ -2,7 +2,9 @@
 #define __MAVROS_UTILS_HPP
 
 #include <ros/ros.h>
+#include <queue>
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/ExtendedState.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -14,12 +16,13 @@
 #include <strings.h>
 #include <Eigen/Eigen>
 #include <std_msgs/String.h> 
-#include "ctrl_bridge/linear_controller.hpp"
-#include "ctrl_bridge/my_math.hpp"
-#include "ctrl_bridge/Px4AttitudeController.hpp"
-#include "ctrl_bridge/params_parse.hpp"
-#include "ctrl_bridge/FSM.hpp"
-#include "quadrotor_msgs/PositionCommand.h"
+#include <std_msgs/Empty.h>
+#include "emnv_ctl_bridge/linear_controller.hpp"
+#include "emnv_ctl_bridge/my_math.hpp"
+#include "emnv_ctl_bridge/Px4AttitudeController.hpp"
+#include "emnv_ctl_bridge/params_parse.hpp"
+#include "emnv_ctl_bridge/FSM.hpp"
+#include "emnv_ctl_bridge/PvayCommand.h"
 
 enum class CtrlMode {
     QUAD_T,
@@ -39,7 +42,6 @@ extern std::map<std::string, CmdPubType> cmdPubMap;
 extern std::map<std::string, CtrlMode> ctrlModeMap;
 
 
-extern ParamsParse params_parse;
 class MavContext
 {
 private:
@@ -49,16 +51,17 @@ public:
     {
         last_recv_odom_time = ros::Time::now();
         landing_touchdown_start_time = ros::Time::now();
-
     };
     ~MavContext(){
 
     };
     ros::Time last_recv_odom_time;
+    ros::Time last_recv_imu_data_time;
     bool is_offboard=false; 
     bool connected = false;
     bool armed = false;
-    std::string mode="";
+    bool landed_state = true;
+    std::string mode = "";
 
     // landing context
     ros::Time landing_touchdown_start_time;
@@ -67,8 +70,42 @@ public:
     Eigen::Vector3d last_state_position;
     // Eigen::Vector3d last_state_velocity;
     Eigen::Quaterniond last_state_attitude;
+    double last_state_yaw = 0.0; // last state yaw, used for landing
+    std::queue<std::pair<double, ros::Time>> landing_mode_height_buffer;
+    bool check_vel_landed(double height, ros::Time now)
+    {
+        // 添加新数据
+        landing_mode_height_buffer.push(std::make_pair(height, now));
 
+        // 保留最近2秒的数据
+        while (!landing_mode_height_buffer.empty() &&
+            (now - landing_mode_height_buffer.front().second).toSec() > 2.0)
+        {
+            landing_mode_height_buffer.pop();
+        }
 
+        if (landing_mode_height_buffer.size() < 2)
+        {
+            return false;
+        }
+
+        // 取最早和最新的高度
+        double h_start = landing_mode_height_buffer.front().first;
+        double h_end   = landing_mode_height_buffer.back().first;
+        ros::Time t_start = landing_mode_height_buffer.front().second;
+        ros::Time t_end   = landing_mode_height_buffer.back().second;
+
+        double dt = (t_end - t_start).toSec();
+        if (dt <= 0.1)  // 数据太短
+        {
+            return false;
+        }
+
+        double v_avg = std::abs((h_end - h_start) / dt); // 平均速度
+
+        // 判定是否落地
+        return v_avg < 0.1;  // 2秒内平均速度小于0.1 m/s
+    };
 };
 
 class MavrosUtils
@@ -76,10 +113,14 @@ class MavrosUtils
 public:
     // ==================  Params  ==================
     CmdPubType ctrl_level;
+    CtrlMode ctrl_mode;
 
     // 所有可能用到的控制变量
     struct CtrlCommand
     {
+        // traj_exp pva;
+        Eigen::Vector3d feedforward_vel; // feedforward vel for position controller
+        Eigen::Vector3d feedforward_acc; // feedforward acc for position controller
         // position control
         Eigen::Vector3d position;
         Eigen::Vector3d velocity;
@@ -104,6 +145,7 @@ public:
         Eigen::Quaterniond attitude;
         Eigen::Vector3d rate;
         Eigen::Vector3d acc;
+        Eigen::Quaterniond imu_attitude;
     };
 
 
@@ -111,33 +153,38 @@ private:
     ros::NodeHandle nh;
     // ==================  Node  ==================
     // Subscribe Mavros Msg
-    ros::Subscriber state_sub_,current_odom_sub_,imu_data_sub_,atti_target_sub_,user_cmd_sub,super_target_sub;
+    ros::Subscriber update_ctrl_params_sub;
+    ros::Subscriber state_sub_, extended_state_sub_, current_odom_sub_, imu_data_sub_, atti_target_sub_, user_cmd_sub;
+    ros::Publisher world_odom_pub_;
     // Subscribe Ctrl Command
-    ros::Subscriber pva_yaw_sub,atti_sp_sub,rate_sp_sub;
+    ros::Subscriber pva_yaw_sub, atti_sp_sub, rate_sp_sub;
     // ros::Subscriber local_linear_vel_sub;
-    // Subscribe external information 
-    ros::Subscriber vision_pose_sub,vrpn_pose_sub;
+    // Subscribe external information
+    ros::Subscriber vision_pose_sub, vrpn_pose_sub;
     // Subscribe takeoff and land command
-    ros::Subscriber takeoff_sub,land_sub,cmd_vaild_sub;
+    ros::Subscriber takeoff_sub, land_sub, cmd_vaild_sub;
 
     // Publish Mavros State Msg
     ros::Publisher vision_pose_pub;
     // Publish Mavros Ctrl Msg
-    ros::Publisher local_pvay_pub,ctrl_atti_pub_,ctrl_posy_pub_;
+    ros::Publisher local_pvay_pub, ctrl_atti_pub_, ctrl_posy_pub_;
     // Publish MavUtils State
     ros::Publisher hover_thrust_pub_;
+    ros::Publisher bridge_status_pub;
 
     ros::ServiceClient set_mode_client_, arming_client_;
     // ==================  Params  ==================
 
     HoverThrustEkf *hover_thrust_ekf_;
-    double _hover_thrust=0.3;
+    double _hover_thrust = 0.15;
     Px4AttitudeController atti_controller_;
+    bool enable_imu_dt_check_f;
 
 public:
-    MavrosUtils(ros::NodeHandle &_nh);
+    MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse);
     ~MavrosUtils();
 
+    ParamsParse params_parse_;
     MavContext context_;
     Odometry odometry_;
     CtrlCommand ctrl_cmd_;
@@ -145,30 +192,34 @@ public:
 
     LinearControl lin_controller;
     // ==================  Callback  ==================
+    void mavUpdateCtrlParamsCallback(const std_msgs::Empty::ConstPtr &msg);
+
     void mavStateCallback(const mavros_msgs::State::ConstPtr &msg);
+    void mavExtendedStateCallback(const mavros_msgs::ExtendedState::ConstPtr &msg);
+    void mavRefOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
     void mavLocalOdomCallback(const nav_msgs::Odometry::ConstPtr &msg);
+
     void mavImuDataCallback(const sensor_msgs::Imu::ConstPtr &msg);
-    void mavAttiTargetCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
-    void mavSupergetCallback(const quadrotor_msgs::PositionCommand::ConstPtr &msg);
-    void mavTakeoffCallback(const std_msgs::String::ConstPtr& msg, std::string name);
-    void mavLandCallback(const std_msgs::String::ConstPtr& msg, std::string name);
-    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr& msg, std::string name);
+    // void TargetPvayCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
+    void mavTakeoffCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
+    void mavLandCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
+    void mavCmd_vaildCallback(const std_msgs::String::ConstPtr &msg, int drone_id);
 
     void mavVisionPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void mavVrpnPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
-    void mavPosCtrlSpCallback(const mavros_msgs::PositionTarget::ConstPtr &msg);
+    void mavPosCtrlSpCallback(const emnv_ctl_bridge::PvayCommand::ConstPtr &msg);
+
     void mavLocalLinearVelCallback(const mavros_msgs::PositionTarget::ConstPtr &msg);
     void mavAttiSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
     void mavRateSpCallback(const mavros_msgs::AttitudeTarget::ConstPtr &msg);
 
-
     void waitConnected();
     /**
      * @brief 向Mosvos请求解锁
-     * 
-     * @return true 
-     * @return false 
+     *
+     * @return true
+     * @return false
      */
     bool requestArm();
     /**
@@ -182,8 +233,10 @@ public:
      * @return 成功(true)或失败(false)
      * @return 成功(true)
      * @return 失败(false)
-     */   
+     */
     bool requestDisarm();
+
+    bool request_land();
 
     void sentCtrlCmd();
     void setMotorsIdling();
@@ -202,7 +255,7 @@ public:
     {
         return context_.armed;
     }
-    
+
     /**
      * @brief 位置控制更新，输入期望位置，速度，加速度，yaw角
      * @param des_pos 期望位置
@@ -211,15 +264,12 @@ public:
      * @param des_yaw 期望yaw角
      * @return 返回初始化成功与否
      */
-    void ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, Eigen::Vector3d des_acc, double des_yaw);
-    // void ctrlUpdate(Eigen::Quaterniond des_atti, double des_thrust);
-    // void ctrlUpdate(Eigen::MatrixX3d, double des_thrust);
-    // void ctrlUpdate(Eigen::Vector3d des_rate, double des_thrust);
-    void ctrlUpdate(Eigen::Vector3d des_vel,double des_yaw, double dt);
-
+    void ctrlUpdate(Eigen::Vector3d des_pos, Eigen::Vector3d des_vel, Eigen::Vector3d des_acc, double des_yaw, double dt);
     void ctrl_loop();
 
     int set_bridge_mode(std::string ctrl_mode_str, std::string cmd_pub_type_str);
+
+    bool updateCtrlParams(bool is_reload_yaml = false);
 
 
 };

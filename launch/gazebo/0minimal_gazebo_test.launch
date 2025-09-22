@@ -1,0 +1,28 @@
+<launch>
+    <arg name = "drone_type" default = "gazebo_iris"/>
+    <arg name = "drone_id" default = "1"/>
+    <arg name = "takeoff_height" default = "5.0"/>
+
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_pub_level" default = "POSY"/>
+    <!-- RATE,ATTI,POSY  -->
+    <arg name = "ctrl_mode" default = "POSY"/>
+
+    <arg name="fcu_url" default = "udp://:14540@127.0.0.1:14557"/>
+
+    <!-- sim time -->
+    <param name="/use_sim_time" type="bool" value="false"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0 0 0 0 0 0 1 map world 100" />
+
+    <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
+        <arg name="drone_id" value="$(arg drone_id)"/>
+        <arg name="drone_type" value="$(arg drone_type)"/>
+        <arg name="takeoff_height" value="$(arg takeoff_height)"/>
+        <arg name="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
+        <arg name="ctrl_mode" value="$(arg ctrl_mode)"/>
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <!-- <arg name="gcs_udp_ip_and_port" value="udp://@$(arg gcs_udp_ip):14550"/> -->
+        <arg name="ref_odom_topic" value="/mavros/local_position/odom"/>
+    </include>
+</launch>

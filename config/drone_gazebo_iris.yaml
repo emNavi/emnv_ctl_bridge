@@ -1,0 +1,29 @@
+px4_internal_ctrl_extra_params:
+  gain:
+    # kvxy_extra: 0.0
+    # kvz_extra: 0.0
+    # kaxy_extra:  0.0
+    # kaz_extra: 0.0
+    kvxy_extra: 3.0
+    kvz_extra: 1.0
+    kaxy_extra: 0.0
+    kaz_extra: 0.0
+linear_controller:
+  gain:
+    Kpxy: 3
+    Kpz: 8
+    Kvxy: 1.5
+    Kvz: 5
+    Kaxy: 1.0
+    Kaz: 1.0
+  max_tile_deg: 25 # deg
+hover_thrust_ekf:
+  init_hover_thrust: 0.6
+  hover_thrust_max: 0.8
+  hover_thrust_noise: 0.1
+  process_noise: 0.004
+atti_controller:
+  gain:
+    Kx: 8
+    Ky: 8
+    Kz: 8
