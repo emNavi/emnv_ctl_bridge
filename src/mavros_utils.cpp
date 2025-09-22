@@ -88,7 +88,6 @@ MavrosUtils::MavrosUtils(ros::NodeHandle &_nh, ParamsParse params_parse)
     nh.getParam("racer_y",racer_y);
     nh.getParam("racer_z",racer_z);
     nh.getParam("swarm_racer_flage",swarm_racer_flage);
-    printf("racerx=:%f %f %f %d",racer_x,racer_x,racer_x,swarm_racer_flage);
 }
 MavrosUtils::~MavrosUtils()
 {
