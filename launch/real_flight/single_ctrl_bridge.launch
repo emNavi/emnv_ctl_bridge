@@ -4,7 +4,6 @@
     <arg name = "takeoff_height" default="0.5"/>
     <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_pub_level" default = "POSY"/>
-    <!-- RATE,ATTI,POSY  -->
     <arg name = "ctrl_mode" default = "POSY"/>
     <arg name="fcu_url" default = "/dev/ttyACM0:921600"/>
 
@@ -12,16 +11,13 @@
     <arg name="tgt_system" default = "1"/>
 
     <include file="$(find emnv_ctl_bridge)/launch/xml/ctrl_bridge.xml">
-        <arg name="pos_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/pos_cmd"/>
-        <arg name="atti_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/atti_sp_cmd"/>
-        <arg name="rate_sp_cmd_topic" value="/drone_$(arg drone_id)_planning/rate_sp_cmd"/>
         <arg name="drone_id" value="$(arg drone_id)"/>
         <arg name="drone_type" value="$(arg drone_type)"/>
         <arg name="takeoff_height" value="$(arg takeoff_height)"/>
         <arg name="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
         <arg name="ctrl_mode" value="$(arg ctrl_mode)"/>
         <arg name="fcu_url" value="$(arg fcu_url)"/>
-        <arg name="gcs_udp_ip_and_port" value="udp://@$(arg gcs_udp_ip):14550"/>
+        <arg name="gcs_url" value="udp://@$(arg gcs_udp_ip):14550"/>
         <arg name="tgt_system" value="$(arg tgt_system)"/>
         <arg name="ref_odom_topic" value="/mavros/local_position/odom"/>
     </include>

@@ -8,12 +8,12 @@
     <arg name = "ctrl_mode"/>
     <!-- mavros parameter -->
     <arg name="fcu_url"/>
-    <arg name="gcs_udp_ip_and_port" default = ""/>
+    <arg name="gcs_url" default = ""/>
     <arg name="tgt_system" default = "1"/>
 
-    <arg name="pos_sp_cmd_topic"/>
-    <arg name="atti_sp_cmd_topic"/>
-    <arg name="rate_sp_cmd_topic"/>
+    <arg name="pos_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/pos_cmd"/>
+    <arg name="atti_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/atti_cmd"/>
+    <arg name="rate_sp_cmd_topic" default="/drone_$(arg drone_id)_planning/rate_cmd"/>
 
     <arg name="ref_odom_topic" default="/mavros/local_position/odom"/>
 
@@ -39,11 +39,10 @@
         <param name ="ctrl_pub_level" value="$(arg ctrl_pub_level)"/>
         <param name ="ctrl_mode" value="$(arg ctrl_mode)"/>
     </node> 
-    <include file="$(find mavros)/launch/px4.launch" >
-        <arg name="fcu_url" value="$(arg fcu_url)"/>
-        <arg name="tgt_system" value="$(arg tgt_system)"/>
-        <arg name="gcs_url" value="$(arg gcs_udp_ip_and_port)"/>
-        <arg name="log_output" value="log"/>
-    </include>
+        <include file="$(find mavros)/launch/px4.launch" >
+            <arg name="fcu_url" value="$(arg fcu_url)"/>
+            <arg name="tgt_system" value="$(arg tgt_system)"/>
+            <arg name="gcs_url" value="$(arg gcs_url)"/>
+            <arg name="log_output" value="log"/>
+        </include>
 </launch>
-

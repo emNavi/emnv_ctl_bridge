@@ -10,7 +10,7 @@
         <arg name="fcu_protocol" default="v2.0" />
         <arg name="respawn_mavros" default="false" />
 		
-		<!-- TODO: 为了防止mavros启动弹错 -->
+	<!-- TODO: 为了防止mavros启动弹错 -->
     	<node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 1 map odom 100" />
 
         <include file="$(find mavros)/launch/node.launch">
