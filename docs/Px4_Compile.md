@@ -1,13 +1,13 @@
-# Px4 编译
+# PX4 Build
 
-> 需要编译 1.15以及以上
+> Version 1.15 or above is required.
 
-测试环境
-- ubuntu20.04
+Test environment:
+- Ubuntu 20.04
 
 
-## 配置环境
-参考资料
+## Setting Up the Environment
+Reference:
 - https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html
 
 
@@ -18,16 +18,16 @@ bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
 
 
 
-### gazebo 测试
+### Gazebo Test
 
 ```bash
 make px4_sitl gazebo-classic
 ```
 
 
-## troubleshoot
+## Troubleshooting
 
-### protobuf 不兼容问题
+### Protobuf Incompatibility
 
 ```bash
 In file included from /home/hao/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/CommandMotorSpeed.pb.cc:6:
@@ -37,27 +37,28 @@ In file included from /home/hao/PX4-Autopilot/build/px4_sitl_default/build_gazeb
 compilation terminated.
 ```
 
-因为版本太新了，需要把新的删除，
+The installed protobuf version is too new. Remove the newer version:
 ```
 which protoc
 ```
 
-### docker 环境
+### Docker Environment
 
-- 开始前请确保已经安装了docker
+- Make sure Docker is installed before proceeding.
 
 TODO
 
 
-## 如何提高定位精度
+## How to Improve Localization Accuracy
 
-默认情况下px4的定位精度比较差，对于对精度要求高的任务无法满足，我们可以降低仿真器中传感器的噪声以提高定位精度
-### 关闭gps噪声
-在`Tools/simulation/gazebo-classic/sitl_gazebo-classic/src/gazebo_gps_plugin.cpp`中，注释掉Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/gps/gps.sdf 中
+By default, PX4's localization accuracy is poor and may not meet the requirements of precision-demanding tasks. We can reduce the sensor noise in the simulator to improve localization accuracy.
+
+### Disable GPS Noise
+In `Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/gps/gps.sdf`, comment out the following line:
 ```bash
 <!-- <gpsNoise>true</gpsNoise> -->
 ```
-在`Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/iris/iris.sdf` 中降低噪声
+In `Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/iris/iris.sdf`, reduce the noise values:
 ```bash
 <gyroscopeNoiseDensity>0.000018665</gyroscopeNoiseDensity>
 <gyroscopeRandomWalk>3.8785e-08</gyroscopeRandomWalk>
@@ -68,4 +69,4 @@ TODO
 <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
 <accelerometerTurnOnBiasSigma>0.00196</accelerometerTurnOnBiasSigma>
 ```
-<!-- > 并不是单一参数导致的 -->
+<!-- > It is not caused by a single parameter -->

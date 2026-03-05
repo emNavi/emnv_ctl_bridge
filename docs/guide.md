@@ -1,93 +1,93 @@
-# 使用细节说明
+# Usage Details
 
 
-## 状态机
-ctrl_bridge 提供了一个上层状态机，状态会发送到`/ctrl_bridge/bridge_status`话题下。
-降落后状态机重置，状态回到IDLE 等待下一次起飞。
-> 一些里程计如vins在飞行一轮后，不再具备起飞条件，需要重启里程计
+## State Machine
+ctrl_bridge provides an upper-level state machine. The state is published to the `/ctrl_bridge/bridge_status` topic.
+After landing, the state machine resets and returns to IDLE, waiting for the next takeoff.
+> Some odometry systems such as VINS may no longer be ready for takeoff after completing a flight, requiring a restart of the odometry system.
 
 
-## 设置odom信息
+## Setting Odometry Information
 
-通过在launch文件中修改 ref_odom 可以使用
-- VIO，LIO的里程计信息
-- /mavros/local_position/odom
+By modifying `ref_odom` in the launch file, you can use:
+- VIO or LIO odometry information
+- `/mavros/local_position/odom`
 
-## 控制
+## Control
 
 ### ctrl_mode
 
-定义 ctrl_mode 是上层的规控系统提供给ctl_bridge的控制指令类型，可选择 `POSY,ATTI,RATE`
-- POSY 是最常见的 pvay
-- ATTI 即规控系统提供 四元数姿态和推力设定值
-- RATE 即规控系统提供 三轴角速度和推力设定值
+`ctrl_mode` defines the type of control command provided by the upper-level planning and control system to ctrl_bridge. Options are `POSY`, `ATTI`, `RATE`.
+- `POSY` is the most common: pvay (position, velocity, acceleration, yaw)
+- `ATTI`: the planning/control system provides a quaternion attitude and thrust setpoint
+- `RATE`: the planning/control system provides 3-axis angular rates and thrust setpoint
 
 
 ### cmd_out_level
-cmd_out_level 是 ctrl_bridge 发送给px4的指令类型可选择
-- `POSY`: 期望位置 + 期望速度 + 期望加速度 + yaw + yaw_speed (3+3+3+1+1) 位置环工作在Px4上
-- `ATTI`: 四元数姿态+归一化的油门推力(4+1)
-- `RATE`: 机体坐标系下的角速度+归一化的油门推力(3+1)
+`cmd_out_level` is the command type that ctrl_bridge sends to PX4. Options are:
+- `POSY`: desired position + desired velocity + desired acceleration + yaw + yaw rate (3+3+3+1+1); the position loop runs on PX4
+- `ATTI`: quaternion attitude + normalized throttle thrust (4+1)
+- `RATE`: body-frame angular rates + normalized throttle thrust (3+1)
 
-> 需要注意的是，使用POSY模式时需要 local_position 输出30hz 的有效值(即Px4获取到了有效的位置信息)。
+> Note: when using POSY mode, `local_position` must output a valid value at 30 Hz (i.e., PX4 has received valid position information).
 
-### ctrl_mode 与cmd_out_level的依赖关系
+### Dependency Between ctrl_mode and cmd_out_level
 
-- ctrl_mode为`RATE` 时，cmd_out_level 仅能为`RATE`
-- ctrl_mode为`ATTI` 时，cmd_out_level 可为`ATTI|RATE`
-- ctrl_mode为`POSY` 时，cmd_out_level 可为`POSY|ATTI|RATE`
+- When `ctrl_mode` is `RATE`, `cmd_out_level` can only be `RATE`
+- When `ctrl_mode` is `ATTI`, `cmd_out_level` can be `ATTI` or `RATE`
+- When `ctrl_mode` is `POSY`, `cmd_out_level` can be `POSY`, `ATTI`, or `RATE`
 
-当对应关系有问题时程序退出，并抛出以下错误
+If the combination is invalid, the program exits and throws the following error:
 ```bash
 [ERROR] [1751528439.591269879]: Invalid correspondence between "ctrl_mode" and "ctrl_level"
 ```
 
-1. 当 ctrl_mode为`POSY`，cmd_out_level 为 `POSY`时，控制由px4计算。
-1. 当 ctrl_mode为`ATTI`，cmd_out_level 为 `ATTI`时，控制由px4计算。
-1. 当 ctrl_mode为`RATE`，cmd_out_level 为 `RATE`时，控制由px4计算。
-1. 当 ctrl_mode为`POSY`，cmd_out_level 为 `ATTI`时，ctrl_bridge中的linear_controller和会生效，即位置环由ctrl_bridge计算。
-1. 当 ctrl_mode为`POSY`，cmd_out_level 为 `RATE`时，ctrl_bridge中的linear_controller和AttitudeController会生效，即位置环和姿态环由ctrl_bridge计算。
-1. 当 ctrl_mode为`ATTI`，cmd_out_level 为 `RATE`时，ctrl_bridge中的AttitudeController生效，即姿态环由ctrl_bridge计算。
+1. When `ctrl_mode` is `POSY` and `cmd_out_level` is `POSY`, control is computed by PX4.
+1. When `ctrl_mode` is `ATTI` and `cmd_out_level` is `ATTI`, control is computed by PX4.
+1. When `ctrl_mode` is `RATE` and `cmd_out_level` is `RATE`, control is computed by PX4.
+1. When `ctrl_mode` is `POSY` and `cmd_out_level` is `ATTI`, the `linear_controller` in ctrl_bridge takes effect — the position loop is computed by ctrl_bridge.
+1. When `ctrl_mode` is `POSY` and `cmd_out_level` is `RATE`, both `linear_controller` and `AttitudeController` in ctrl_bridge take effect — the position loop and attitude loop are computed by ctrl_bridge.
+1. When `ctrl_mode` is `ATTI` and `cmd_out_level` is `RATE`, the `AttitudeController` in ctrl_bridge takes effect — the attitude loop is computed by ctrl_bridge.
 
 
 
 
+### Landing Detection
+- Descent speed remains below `-0.1 m/s` for 2 consecutive seconds
+- When hover thrust estimation is active, the estimated hover thrust stays below `0.1` for 2 consecutive seconds
 
-### 降落判定
-- 连续2s降落速度小于`-0.1m/s`
-- 当悬停油门估计生效时，连续2s悬停油门估计值小于`0.1`
-### 起飞降落指令
+### Takeoff and Landing Commands
 
-ctl bridge 提供快速起飞与降落的功能
-  - /ctrl_bridge/takeoff Bool msg
-  - /ctrl_bridge/land  Bool msg
+ctrl_bridge provides quick takeoff and landing functionality:
+  - `/ctrl_bridge/takeoff` Bool msg
+  - `/ctrl_bridge/land`  Bool msg
 ```bash
-# source src/control_for_gym/Tools/help_func.sh # 默认已经包含在了 devel/setup.bash 中
+# source src/control_for_gym/Tools/help_func.sh # already included in devel/setup.bash by default
 source devel/setup.bash
 takeoff drone
 land drone
-# "drone" 是一个参数（drone_name），在launch文件中配置
-# 你也可以一次起飞或降落多个飞机
+# "drone" is a parameter (drone_name) configured in the launch file
+# You can also take off or land multiple drones at once
 takeoff drone1,drone2
 land drone1,drone2
 ```
 
-起飞降落阶段具有以下特性
-> 1. 在起飞与降落阶段，用户上层规控程序不介入控制(规控控制指令将被ctrl_bridge拒绝)
-> 2. 起飞与降落指令互斥，即仅以最后收到的指令类型为准
-> 3. 起飞过程能被降落直接打断
+The takeoff and landing phases have the following characteristics:
+> 1. During takeoff and landing, the user's upper-level planning/control program does not intervene in control (control commands will be rejected by ctrl_bridge)
+> 2. Takeoff and landing commands are mutually exclusive — only the last received command type takes effect
+> 3. A takeoff can be directly interrupted by a landing command
 
 
 
-## 状态估计
-### 悬停油门估计
+## State Estimation
+### Hover Thrust Estimation
 
-若cmd_out_level设置为`ATTI`或`RATE`时，ctl_bridge需要完成悬停油门估计的任务。
-> 油门的估计依赖于
-> - 归一化油门的world坐标系下z轴方向分量
-> - world坐标系下Z轴方向的加速度
+When `cmd_out_level` is set to `ATTI` or `RATE`, ctl_bridge needs to perform hover thrust estimation.
+> The thrust estimation depends on:
+> - The z-axis component of the normalized throttle in the world coordinate frame
+> - The z-axis acceleration measured in the world coordinate frame
 
-悬停油门估计使用了单变量EKF, $a_z^{meas}$是世界坐标系下测量的z轴加速度，$u_{hover}$ 是悬停油门(0~1)u是归一化油门，$g$是重力加速度，测量方程为
+Hover thrust estimation uses a single-variable EKF. $a_z^{meas}$ is the measured z-axis acceleration in the world frame, $u_{hover}$ is the hover thrust (0~1), $u$ is the normalized throttle, and $g$ is gravitational acceleration. The measurement equation is:
 $$
 a_z^{meas}  =  \frac{u}{u_{hover}}g+noise
 $$
@@ -95,11 +95,11 @@ $$
 
 
 
-在代码中
-- 从`/mavros/imu/data`拿到的加速度的是baselink坐标系下的，通过坐标系转换获得世界坐标系下的z轴测量值。
-- u 使用进入混控器前的油门设定值
+In the code:
+- The acceleration obtained from `/mavros/imu/data` is in the baselink frame; a coordinate transform is applied to get the z-axis measurement in the world frame.
+- $u$ uses the throttle setpoint before entering the mixer
 
-估计模块留出了一些设置接口:
+The estimation module exposes several configuration parameters:
 ```yaml
 hover_thrust_ekf:
   init_hover_thrust: 0.6
@@ -107,31 +107,30 @@ hover_thrust_ekf:
   hover_thrust_noise: 0.1
   process_noise: 0.0036
 ```
-- init_hover_thrust： 即估计的悬停油门初值，若不清楚可设为0.1，设置小了，起飞过程会比较缓慢，设置大了，起飞过程可能过冲。若cmd_out_level设置为`ATTI`或`RATE`,那么可以在起飞并成功悬停后通过`rostopic echo /ctrl_bridge/hover_thrust`获得实时的悬停油门估计
-- hover_thrust_max: 悬停油门估计值的上限
-- hover_thrust_noise: 悬停油门噪声
-- process_noise： imu加速度测量噪声
+- `init_hover_thrust`: the initial estimate of hover thrust. If unknown, set to 0.1. If set too low, takeoff will be sluggish; if set too high, takeoff may overshoot. If `cmd_out_level` is `ATTI` or `RATE`, you can check the real-time hover thrust estimate after successful takeoff and hover via `rostopic echo /ctrl_bridge/hover_thrust`.
+- `hover_thrust_max`: upper bound on the hover thrust estimate
+- `hover_thrust_noise`: hover thrust measurement noise
+- `process_noise`: IMU acceleration measurement noise
 
-> 参考:px4悬停油门估计
+> Reference: PX4 hover thrust estimation
 
-<!-- 
-## 遥控器控制
-### 遥控器强制降落
+## Remote Control
+### Forced Landing via Remote Control
 TODO
-- 可以设置一个拨杆用于切换 程序控制和遥控器控制，我们默认你有一个拨杆被设置成了cmd_valid 开关，若状态估计正常，你可以使用开关强制切换成降落模式。 -->
+- You can configure a switch to toggle between program control and remote control. We assume you have a switch configured as a cmd_valid toggle. If state estimation is normal, you can use the switch to force a switch to landing mode. -->
 
 
 
-## 多机部署
+## Multi-UAV Deployment
 
-针对仿真时多机使用，ctrl_bridge适配了`<group>` ，mavutils订阅的mavros话题均会自动加入group前缀
+For multi-UAV simulation, ctrl_bridge is adapted to use ROS `<group>` namespaces. All mavros topics subscribed by mavutils will automatically include the group prefix.
 
 
-## 轨迹生成模块
-### 五次多项式轨迹
-可以生成五次多项式轨迹方便快速测试控制效果。需要注意的是
-- 轨迹不具备避障功能
-- 轨迹不考虑实际场地约束，即生成轨迹形状仅依赖关键点和执行时间设置
-- 更多使用请参考[轨迹生成模块](./docs/ploy_traj.md)
-### lemniscate
-生成8字轨迹
+## Trajectory Generation Module
+### Fifth-Order Polynomial Trajectory
+A fifth-order polynomial trajectory generator is available for quickly testing control performance. Note that:
+- The trajectory does not support obstacle avoidance
+- The trajectory does not account for physical space constraints — the generated shape depends only on the waypoints and execution time settings
+- For more details, see [Trajectory Generation Module](./docs/ploy_traj.md)
+### Lemniscate
+Generates a figure-eight trajectory.

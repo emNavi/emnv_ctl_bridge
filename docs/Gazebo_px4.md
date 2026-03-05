@@ -1,6 +1,6 @@
-# Gazebo px4
+# Gazebo PX4
 
-通过软件在环快速测试代码
+Quickly test your code using software-in-the-loop simulation.
 
 ```mermaid
 graph RL
@@ -10,16 +10,16 @@ graph RL
 ```
 
 
-# 最小Gazebo环境测试
+# Minimal Gazebo Environment Test
 
 
- 开始前你需要[编译px4](./Px4_Compile.md), 此外，为了更好的测试，你需要[修改px4仿真代码](./Px4_Compile.md#如何提高定位精度)以提高定位精度
+Before starting, you need to [build PX4](./Px4_Compile.md). Additionally, for better test accuracy, you should [modify the PX4 simulation code](./Px4_Compile.md#how-to-improve-localization-accuracy) to improve localization precision.
 
 ```bash
 make px4_sitl gazebo-classic_iris
 ```
 
-现在在ros_ws下 
+Now, in your ros_ws directory:
 ```bash
 catkin_make
 source devel/setup.bash
@@ -28,29 +28,29 @@ roslaunch emnv_ctl_bridge 1simple_gazebo_test.launch
 ```
 
 
-现在在命令行中输入
+Now enter the following in the command line:
 ```
 source devel/setup.bash
-# 起飞
+# Takeoff
 takeoff iris
 
-# 降落 
+# Land
 land iris
 ```
 
 
-<!-- ## 时间 
+<!-- ## Time
 
-当gazebo环境过于复杂时，仿真速度可能会降低，由于控制循环参考的是本机时间而不是仿真时间，会导致速度ctl_bridge的控制速度不是设定值
-
-
-## 端口选择
-Px4 软件在环中 不同的端口不是相同的会对消息选择性发送，我们需要使用携带有加速度信息的端口 -->
+When the Gazebo environment is too complex, the simulation speed may decrease. Since the control loop references the local machine time rather than simulation time, the control speed of ctl_bridge may not match the set value.
 
 
+## Port Selection
+In PX4 software-in-the-loop, different ports selectively send different messages. We need to use the port that carries acceleration information. -->
 
-## 发送控制指令
-例如
+
+
+## Sending Control Commands
+For example:
 ```bash
 rostopic pub /traj_test/cmd emnv_ctl_bridge/PvayCommand "header:
   seq: 0
